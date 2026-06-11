@@ -1347,7 +1347,25 @@ function updateUI(dt) {
   elClock.textContent = TZ_FMT_TIME.format(sim.ms) + (sim.speed === 0 ? '  ⏸' : '');
   elEnv.textContent = SEASON_RU[sim.season] + ' · ' + WEATHER_RU[sim.weather] + ' · ≈' +
     (sim.tempC > 0 ? '+' : '') + sim.tempC + ' °C';
-  elStats.textContent = 'Жителей на улицах: ' + peds.length + ' · машин: ' + cars.length;
+  elStats.textContent = 'Жителей на улицах: ' + peds.length + ' · машин: ' + cars.length +
+    ' · ' + Math.round(fpsValue) + ' fps';
+}
+
+// Адаптивное качество: при низком FPS снижаем разрешение рендера
+var fpsValue = 60, fpsFrames = 0, fpsTime = 0;
+var prMax = Math.min(window.devicePixelRatio || 1, 2), prScale = prMax;
+function updateQuality(dt) {
+  fpsFrames++; fpsTime += dt;
+  if (fpsTime < 2) return;
+  fpsValue = fpsFrames / fpsTime;
+  fpsFrames = 0; fpsTime = 0;
+  if (fpsValue < 28 && prScale > 0.7) {
+    prScale = Math.max(0.65, prScale - 0.25);
+    renderer.setPixelRatio(prScale);
+  } else if (fpsValue > 55 && prScale < prMax) {
+    prScale = Math.min(prMax, prScale + 0.25);
+    renderer.setPixelRatio(prScale);
+  }
 }
 
 (function initUI() {
@@ -1462,6 +1480,7 @@ function loop() {
   updateKeysCamera(dt);
   applyCamera();
   updatePoiLabels(dt);
+  updateQuality(dt);
   updateUI(dt);
   renderer.render(scene, camera);
 }
