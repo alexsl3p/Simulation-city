@@ -124,15 +124,24 @@ window.addEventListener('resize', function () {
 
 // --------------------------------------------------- geometry construction
 // Аккумулятор треугольников: положили точки — получили один merged-меш.
-function GeomSink() { this.pos = []; this.norm = []; }
+function GeomSink(useColor) {
+  this.pos = []; this.norm = [];
+  this.col = useColor ? [] : null;
+  this.tint = 1;
+}
 GeomSink.prototype.tri = function (ax, ay, az, bx, by, bz, cx, cy, cz, nx, ny, nz) {
   this.pos.push(ax, ay, az, bx, by, bz, cx, cy, cz);
   this.norm.push(nx, ny, nz, nx, ny, nz, nx, ny, nz);
+  if (this.col) {
+    var t = this.tint;
+    this.col.push(t, t, t, t, t, t, t, t, t);
+  }
 };
 GeomSink.prototype.build = function () {
   var g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(this.norm, 3));
+  if (this.col) g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 3));
   return g;
 };
 
@@ -264,15 +273,20 @@ function buildRoads() {
 
 function buildBuildings() {
   var sinks = {}, winPos = [];
-  for (var k in BUILDING_STYLE) sinks[k] = new GeomSink();
-  var roofP = new GeomSink(), roofF = new GeomSink();
+  for (var k in BUILDING_STYLE) sinks[k] = new GeomSink(true);
+  var roofP = new GeomSink(true), roofF = new GeomSink(true);
   var rng = mulberry32(7);
   for (var i = 0; i < D.buildings.length; i++) {
     var b = D.buildings[i];
     // скатные крыши — у малоэтажных домов с простым контуром
     var pitched = (b.t === 'house' || b.t === 'garage' || b.t === 'civic') &&
                   b.p.length <= 8 && b.h < 12 && polygonArea(b.p) < 700;
-    addPrism(sinks[b.t] || sinks.gen, b.p, b.h, pitched ? roofP : roofF, pitched);
+    // индивидуальный оттенок здания, чтобы кварталы не были однотонными
+    var sink = sinks[b.t] || sinks.gen;
+    var roof = pitched ? roofP : roofF;
+    sink.tint = 0.8 + rng() * 0.35;
+    roof.tint = 0.78 + rng() * 0.4;
+    addPrism(sink, b.p, b.h, roof, pitched);
     // точки «окон», светящиеся ночью
     if (b.h >= 4 && rng() < 0.75) {
       var nWin = 1 + Math.floor(b.h / 7);
@@ -289,12 +303,15 @@ function buildBuildings() {
   mats.bld = {};
   for (var k2 in sinks) {
     if (!sinks[k2].pos.length) continue;
-    var m = new THREE.MeshPhongMaterial({ color: BUILDING_STYLE[k2], side: THREE.DoubleSide, shininess: 4 });
+    var m = new THREE.MeshPhongMaterial({ color: BUILDING_STYLE[k2], side: THREE.DoubleSide,
+      shininess: 4, vertexColors: true });
     mats.bld[k2] = m;
     cityGroup.add(new THREE.Mesh(sinks[k2].build(), m));
   }
-  mats.roofP = new THREE.MeshPhongMaterial({ color: 0x96503e, side: THREE.DoubleSide, shininess: 2 });
-  mats.roofF = new THREE.MeshPhongMaterial({ color: 0x84888e, side: THREE.DoubleSide, shininess: 2 });
+  mats.roofP = new THREE.MeshPhongMaterial({ color: 0x96503e, side: THREE.DoubleSide,
+    shininess: 2, vertexColors: true });
+  mats.roofF = new THREE.MeshPhongMaterial({ color: 0x84888e, side: THREE.DoubleSide,
+    shininess: 2, vertexColors: true });
   cityGroup.add(new THREE.Mesh(roofP.build(), mats.roofP));
   cityGroup.add(new THREE.Mesh(roofF.build(), mats.roofF));
   var wg = new THREE.BufferGeometry();
