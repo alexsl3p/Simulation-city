@@ -760,6 +760,33 @@ function updatePoiLabels(dt) {
   }
 }
 
+// Ночная неоновая подсветка заведений (там же, где собираются люди)
+var GLOW_COLORS = { night: 0xff4f9a, food: 0xffa040, hotel: 0x55a0ff,
+                    culture: 0xa070ff, shop: 0x55cc66 };
+function buildPoiGlow() {
+  var pos = [], col = [], c = new THREE.Color();
+  for (var i = 0; i < pois.length; i++) {
+    var p = pois[i];
+    var hex = GLOW_COLORS[p.t];
+    if (!hex) continue;
+    c.setHex(hex);
+    pos.push(p.x, 4.5, p.z);
+    col.push(c.r, c.g, c.b);
+    if (p.t === 'night') { // у баров — двойное свечение повыше
+      pos.push(p.x, 7.5, p.z);
+      col.push(c.r, c.g, c.b);
+    }
+  }
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  var m = new THREE.PointsMaterial({ vertexColors: true, size: 7, sizeAttenuation: true,
+    transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+  nightGlowMats.push(m);
+  var pts = new THREE.Points(g, m);
+  scene.add(pts);
+}
+
 // Веса категорий целей в зависимости от часа/дня недели/сезона/погоды.
 function poiWeights(hour, dow, season, weather) {
   var w = { night: 0.1, food: 0.4, shop: 0.2, school: 0.02, culture: 0.15, hotel: 0.25,
@@ -1572,7 +1599,7 @@ var stages = [
     carGraph = buildGraph({ maj: 1, res: 1, srv: 1 });
     walkGraph = buildGraph({ ped: 1, res: 1, srv: 1, maj: 1 });
   }],
-  ['Жители и транспорт…', function () { preparePois(); buildPoiLabels(); buildAgents(); buildBoats(); buildMinimap(); }]
+  ['Жители и транспорт…', function () { preparePois(); buildPoiLabels(); buildPoiGlow(); buildAgents(); buildBoats(); buildMinimap(); }]
 ];
 var stageIdx = 0;
 function runStage() {
