@@ -103,6 +103,8 @@ var canvas = document.getElementById('scene');
 var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 
 var scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x87b5e0, 1200, 6500);
@@ -112,7 +114,15 @@ var camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHei
 var hemi = new THREE.HemisphereLight(0xbcd8ff, 0x3a4a3a, 0.7);
 scene.add(hemi);
 var sun = new THREE.DirectionalLight(0xffffff, 1.0);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -700; sun.shadow.camera.right = 700;
+sun.shadow.camera.top = 700; sun.shadow.camera.bottom = -700;
+sun.shadow.camera.near = 100; sun.shadow.camera.far = 8000;
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.6;
 scene.add(sun);
+scene.add(sun.target);
 var ambient = new THREE.AmbientLight(0x223355, 0.25);
 scene.add(ambient);
 
@@ -232,6 +242,7 @@ function buildGround() {
   var ground = new THREE.Mesh(new THREE.PlaneGeometry(16000, 16000), mats.ground);
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.3;
+  ground.receiveShadow = true;
   cityGroup.add(ground);
 }
 
@@ -253,7 +264,10 @@ function buildWaterAndLand() {
   mats.cemetery = flatMat(0x5a7a52);
   waterMats.push(mats.water);
   for (var k in sinks) {
-    if (sinks[k].pos.length) cityGroup.add(new THREE.Mesh(sinks[k].build(), mats[k]));
+    if (!sinks[k].pos.length) continue;
+    var lm = new THREE.Mesh(sinks[k].build(), mats[k]);
+    lm.receiveShadow = true;
+    cityGroup.add(lm);
   }
 }
 
@@ -268,7 +282,11 @@ function buildRoads() {
   mats.res = flatMat(0x4a4f55);
   mats.srv = flatMat(0x55595e);
   mats.ped = flatMat(0x9a948a);
-  for (var k in sinks) cityGroup.add(new THREE.Mesh(sinks[k].build(), mats[k]));
+  for (var k in sinks) {
+    var rm = new THREE.Mesh(sinks[k].build(), mats[k]);
+    rm.receiveShadow = true;
+    cityGroup.add(rm);
+  }
 }
 
 function buildBuildings() {
@@ -306,14 +324,18 @@ function buildBuildings() {
     var m = new THREE.MeshPhongMaterial({ color: BUILDING_STYLE[k2], side: THREE.DoubleSide,
       shininess: 4, vertexColors: true });
     mats.bld[k2] = m;
-    cityGroup.add(new THREE.Mesh(sinks[k2].build(), m));
+    var bm = new THREE.Mesh(sinks[k2].build(), m);
+    bm.castShadow = true; bm.receiveShadow = true;
+    cityGroup.add(bm);
   }
   mats.roofP = new THREE.MeshPhongMaterial({ color: 0x96503e, side: THREE.DoubleSide,
     shininess: 2, vertexColors: true });
   mats.roofF = new THREE.MeshPhongMaterial({ color: 0x84888e, side: THREE.DoubleSide,
     shininess: 2, vertexColors: true });
-  cityGroup.add(new THREE.Mesh(roofP.build(), mats.roofP));
-  cityGroup.add(new THREE.Mesh(roofF.build(), mats.roofF));
+  var rpm = new THREE.Mesh(roofP.build(), mats.roofP);
+  var rfm = new THREE.Mesh(roofF.build(), mats.roofF);
+  rpm.castShadow = rfm.castShadow = rpm.receiveShadow = rfm.receiveShadow = true;
+  cityGroup.add(rpm); cityGroup.add(rfm);
   var wg = new THREE.BufferGeometry();
   wg.setAttribute('position', new THREE.Float32BufferAttribute(winPos, 3));
   var wm = new THREE.PointsMaterial({ color: 0xffcf7d, size: 2.4, sizeAttenuation: true,
@@ -361,6 +383,7 @@ function buildTrees() {
   }
   // у InstancedMesh сфера отсечения не учитывает инстансы — отключаем culling
   trunks.frustumCulled = false; crowns.frustumCulled = false;
+  crowns.castShadow = true;
   cityGroup.add(trunks); cityGroup.add(crowns);
 }
 
@@ -722,6 +745,7 @@ function buildAgents() {
   carMesh = new THREE.InstancedMesh(carGeom, new THREE.MeshLambertMaterial({ color: 0xffffff }), CAR_MAX);
   carMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   carMesh.frustumCulled = false;
+  carMesh.castShadow = true;
   scene.add(carMesh);
 
   // человек: тело + голова
@@ -733,6 +757,7 @@ function buildAgents() {
   pedMesh = new THREE.InstancedMesh(pedGeom, new THREE.MeshLambertMaterial({ color: 0xffffff }), PED_MAX);
   pedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   pedMesh.frustumCulled = false;
+  pedMesh.castShadow = true;
   scene.add(pedMesh);
 
   // фары и габариты, светятся в темноте (по 2 точки спереди и сзади)
@@ -1084,7 +1109,9 @@ function updateSky() {
   // направление на солнце: x — восток, z — юг
   var az = sp.azimuth;
   var dir = new THREE.Vector3(-Math.sin(az) * Math.cos(alt), Math.sin(alt), Math.cos(az) * Math.cos(alt));
-  sun.position.copy(dir).multiplyScalar(4000);
+  // солнце и его теневая камера следуют за камерой
+  sun.position.copy(cam.target).addScaledVector(dir, 3000);
+  sun.target.position.copy(cam.target);
   sun.intensity = dayF * (overcast ? 0.25 : 1.0);
   _tmp.setHex(0xfff2dd).lerp(new THREE.Color(0xff9a40), dawnF);
   sun.color.copy(_tmp);
@@ -1232,6 +1259,9 @@ function updateUI(dt) {
   });
   document.getElementById('labels').addEventListener('change', function (e) {
     labelsEnabled = e.target.checked;
+  });
+  document.getElementById('shadows').addEventListener('change', function (e) {
+    sun.castShadow = e.target.checked;
   });
 
   // готовые сцены: дата + погода + точка города
