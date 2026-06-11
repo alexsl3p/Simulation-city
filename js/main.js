@@ -664,7 +664,7 @@ function carTargetCount(hour, dow, season, weather) {
 // ----------------------------------------------------------------- agents
 var CAR_MAX = 170, PED_MAX = 600;
 var cars = [], peds = [];
-var carMesh, pedMesh;
+var carMesh, pedMesh, headPts, tailPts;
 var dummy = new THREE.Object3D();
 var CAR_COLORS = [0xc8ccd0, 0x2a2e33, 0x8a9aaa, 0x7a2222, 0x224477, 0xd8d2c0, 0x445544, 0xddaa33];
 var PED_COLORS = [0x3a4a6a, 0x6a3a3a, 0x3a6a4a, 0x6a5a2a, 0x555566, 0x884466, 0x336677, 0x775533];
@@ -691,6 +691,23 @@ function buildAgents() {
   pedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   pedMesh.frustumCulled = false;
   scene.add(pedMesh);
+
+  // фары и габариты, светятся в темноте (по 2 точки спереди и сзади)
+  function lightPoints(color, size) {
+    var g = new THREE.BufferGeometry();
+    var arr = new Float32Array(CAR_MAX * 2 * 3);
+    for (var li = 0; li < arr.length; li += 3) arr[li + 1] = -100;
+    g.setAttribute('position', new THREE.BufferAttribute(arr, 3).setUsage(THREE.DynamicDrawUsage));
+    var m = new THREE.PointsMaterial({ color: color, size: size, sizeAttenuation: true,
+      transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    nightGlowMats.push(m);
+    var pts = new THREE.Points(g, m);
+    pts.frustumCulled = false;
+    scene.add(pts);
+    return pts;
+  }
+  headPts = lightPoints(0xfff2c0, 2.6);
+  tailPts = lightPoints(0xff3526, 2.0);
 
   var rng = mulberry32(2024);
   for (var i = 0; i < CAR_MAX; i++) {
@@ -751,12 +768,11 @@ var agentRng = mulberry32(123456);
 
 function updateCars(simDt, clock) {
   var target = carTargetCount(clock.hour, clock.dow, sim.season, sim.weather);
-  if (cars.length < target && agentRng() < 0.3) {
+  for (var sc = 0; sc < 4 && cars.length < target; sc++) {
     var c = spawnCar(agentRng);
     if (c) cars.push(c);
-  } else if (cars.length > target && agentRng() < 0.1) {
-    cars.pop();
   }
+  if (cars.length > target && agentRng() < 0.1) cars.pop();
   var g = carGraph;
   var moveDt = Math.min(simDt, 0.0333 * 120); // движение «не быстрее» 120×
   for (var i = 0; i < cars.length; i++) {
@@ -783,7 +799,26 @@ function updateCars(simDt, clock) {
     c.x = lerp(A[0], B[0], c.t);
     c.z = lerp(A[1], B[1], c.t);
     c.ang = Math.atan2(-(B[1] - A[1]), B[0] - A[0]);
+    c.fx = (B[0] - A[0]) / len; c.fz = (B[1] - A[1]) / len;
   }
+  // огни: фары спереди, габариты сзади
+  var hArr = headPts.geometry.attributes.position.array;
+  var tArr = tailPts.geometry.attributes.position.array;
+  for (var li = 0; li < CAR_MAX; li++) {
+    var o = li * 6;
+    if (li < cars.length) {
+      var cc = cars[li];
+      var px = -cc.fz * 0.6, pz = cc.fx * 0.6;
+      hArr[o] = cc.x + cc.fx * 2.1 + px; hArr[o + 1] = 0.95; hArr[o + 2] = cc.z + cc.fz * 2.1 + pz;
+      hArr[o + 3] = cc.x + cc.fx * 2.1 - px; hArr[o + 4] = 0.95; hArr[o + 5] = cc.z + cc.fz * 2.1 - pz;
+      tArr[o] = cc.x - cc.fx * 2.1 + px; tArr[o + 1] = 0.95; tArr[o + 2] = cc.z - cc.fz * 2.1 + pz;
+      tArr[o + 3] = cc.x - cc.fx * 2.1 - px; tArr[o + 4] = 0.95; tArr[o + 5] = cc.z - cc.fz * 2.1 - pz;
+    } else {
+      hArr[o + 1] = hArr[o + 4] = tArr[o + 1] = tArr[o + 4] = -100;
+    }
+  }
+  headPts.geometry.attributes.position.needsUpdate = true;
+  tailPts.geometry.attributes.position.needsUpdate = true;
   for (var k = 0; k < CAR_MAX; k++) {
     if (k < cars.length) {
       dummy.position.set(cars[k].x, 0.15, cars[k].z);
