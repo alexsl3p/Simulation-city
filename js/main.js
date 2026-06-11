@@ -1385,6 +1385,48 @@ function flyTo(tx, tz, dist, phi, theta) {
     tp: phi == null ? cam.phi : phi, tth: cam.theta + dth
   };
 }
+// Автотур: облёт достопримечательностей, прерывается любым ручным действием
+var tour = null;
+function tourStops() {
+  var marina = HARBORS[0];
+  var beachC = { x: 0, z: 1600 }, nightC = { x: 0, z: 0 };
+  var bp = poiByCat.beach || [], np = poiByCat.night || [];
+  var i, n;
+  if (bp.length) {
+    beachC.x = beachC.z = 0;
+    for (i = 0, n = Math.min(bp.length, 12); i < n; i++) { beachC.x += bp[i].x; beachC.z += bp[i].z; }
+    beachC.x /= n; beachC.z /= n;
+  }
+  if (np.length) {
+    nightC.x = nightC.z = 0;
+    for (i = 0, n = Math.min(np.length, 8); i < n; i++) { nightC.x += np[i].x; nightC.z += np[i].z; }
+    nightC.x /= n; nightC.z /= n;
+  }
+  return [
+    { x: -100, z: 300, d: 1100, p: 0.95, th: -0.9 },          // панорама центра
+    { x: 177, z: 244, d: 240, p: 1.05, th: -1.6 },            // Елизаветинская церковь
+    { x: nightC.x, z: nightC.z, d: 300, p: 0.9, th: -0.4 },   // квартал баров
+    { x: marina[0], z: marina[1], d: 380, p: 1.0, th: 2.2 },  // яхт-клуб и река
+    { x: beachC.x, z: beachC.z, d: 600, p: 1.05, th: 1.6 },   // пляж и залив
+    { x: 600, z: -500, d: 700, p: 0.9, th: 0.6 }              // заречье
+  ];
+}
+function startTour() {
+  tour = { stops: tourStops(), idx: -1, wait: 0 };
+}
+function stopTour() { tour = null; }
+function updateTour(dt) {
+  if (!tour) return;
+  if (camTween) return;          // ещё летим к точке
+  tour.wait -= dt;
+  if (tour.wait > 0) return;     // любуемся
+  tour.idx = (tour.idx + 1) % tour.stops.length;
+  var s = tour.stops[tour.idx];
+  flyTo(s.x, s.z, s.d, s.p, s.th);
+  camTween.dur = 4;              // у тура перелёты медленнее
+  tour.wait = 6;
+}
+
 function updateCamTween(dt) {
   if (!camTween) return;
   camTween.t += dt;
@@ -1429,7 +1471,7 @@ var keys = {};
     dragging = (e.button === 2 || e.shiftKey) ? 2 : 1;
     px = e.clientX; py = e.clientY;
     downX = e.clientX; downY = e.clientY;
-    camTween = null; // ручное управление отменяет перелёт
+    camTween = null; stopTour(); // ручное управление отменяет перелёт и тур
   });
   window.addEventListener('mouseup', function (e) {
     if (dragging === 1 && Math.abs(e.clientX - downX) < 6 && Math.abs(e.clientY - downY) < 6) {
@@ -1454,7 +1496,7 @@ var keys = {};
   });
   canvas.addEventListener('wheel', function (e) {
     e.preventDefault();
-    camTween = null;
+    camTween = null; stopTour();
     cam.dist *= Math.pow(1.0013, e.deltaY);
   }, { passive: false });
   window.addEventListener('keydown', function (e) { keys[e.code] = true; });
@@ -1463,7 +1505,7 @@ var keys = {};
   // touch: 1 палец — вращение, 2 пальца — pinch-zoom и сдвиг
   var lastTouchDist = 0, lastMidX = 0, lastMidY = 0;
   canvas.addEventListener('touchstart', function (e) {
-    camTween = null;
+    camTween = null; stopTour();
     if (e.touches.length === 1) { px = e.touches[0].clientX; py = e.touches[0].clientY; }
     else if (e.touches.length === 2) {
       lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
@@ -1498,7 +1540,7 @@ var keys = {};
 })();
 function updateKeysCamera(dt) {
   if (keys.KeyW || keys.KeyS || keys.KeyA || keys.KeyD ||
-      keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight) camTween = null;
+      keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight) { camTween = null; stopTour(); }
   var v = cam.dist * 0.9 * dt;
   var fx = -Math.cos(cam.theta), fz = -Math.sin(cam.theta);
   var rx = -fz, rz = fx;
@@ -1612,8 +1654,12 @@ function updateQuality(dt) {
       flyTo(-100, 300, 900, 0.9);
     }
   };
+  document.getElementById('tourbtn').addEventListener('click', function () {
+    if (tour) stopTour(); else startTour();
+  });
   document.querySelectorAll('button[data-preset]').forEach(function (b) {
     b.addEventListener('click', function () {
+      stopTour();
       PRESETS[b.dataset.preset]();
       lastScatterMs = 0;
       var dp2 = document.getElementById('datepick');
@@ -1735,6 +1781,7 @@ function loop() {
   updateBoats(dt, simDt);
   updateBirds(dt, simDt, dayF);
   updateKeysCamera(dt);
+  updateTour(dt);
   updateCamTween(dt);
   applyCamera();
   updatePoiLabels(dt);
