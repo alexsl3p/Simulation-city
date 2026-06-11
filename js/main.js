@@ -166,8 +166,7 @@ function addRibbon(sink, pts, w, y) {
   }
 }
 
-function addPrism(sink, pts, h) {
-  addFlatPoly(sink, pts, h); // крыша
+function addPrism(sink, pts, h, roofSink, pitched) {
   for (var i = 0; i < pts.length; i++) {
     var j = (i + 1) % pts.length;
     var ax = pts[i][0], az = pts[i][1], bx = pts[j][0], bz = pts[j][1];
@@ -176,6 +175,28 @@ function addPrism(sink, pts, h) {
     var nx = dz / len, nz = -dx / len;
     sink.tri(ax, 0, az, bx, 0, bz, bx, h, bz, nx, 0, nz);
     sink.tri(ax, 0, az, bx, h, bz, ax, h, az, nx, 0, nz);
+  }
+  if (!pitched) {
+    addFlatPoly(roofSink || sink, pts, h);
+    return;
+  }
+  // шатровая крыша: скаты от карниза к коньку-вершине над центроидом
+  var cx = 0, cz = 0;
+  for (var k = 0; k < pts.length; k++) { cx += pts[k][0]; cz += pts[k][1]; }
+  cx /= pts.length; cz /= pts.length;
+  var rh = clamp(0.28 * Math.sqrt(polygonArea(pts)), 1.2, 4);
+  var apexY = h + rh;
+  for (var e = 0; e < pts.length; e++) {
+    var f = (e + 1) % pts.length;
+    var ax2 = pts[e][0], az2 = pts[e][1], bx2 = pts[f][0], bz2 = pts[f][1];
+    // нормаль ската: cross(B-A, apex-A), ориентируем наружу от центроида
+    var ux = bx2 - ax2, uz = bz2 - az2;
+    var vx = cx - ax2, vy = apexY - h, vz = cz - az2;
+    var nx2 = -uz * vy, ny2 = uz * vx - ux * vz, nz2 = ux * vy;
+    var mx = (ax2 + bx2) / 2 - cx, mz = (az2 + bz2) / 2 - cz;
+    if (nx2 * mx + nz2 * mz < 0) { nx2 = -nx2; ny2 = -ny2; nz2 = -nz2; }
+    var nl = Math.sqrt(nx2 * nx2 + ny2 * ny2 + nz2 * nz2) || 1;
+    roofSink.tri(ax2, h, az2, bx2, h, bz2, cx, apexY, cz, nx2 / nl, ny2 / nl, nz2 / nl);
   }
 }
 
@@ -244,10 +265,14 @@ function buildRoads() {
 function buildBuildings() {
   var sinks = {}, winPos = [];
   for (var k in BUILDING_STYLE) sinks[k] = new GeomSink();
+  var roofP = new GeomSink(), roofF = new GeomSink();
   var rng = mulberry32(7);
   for (var i = 0; i < D.buildings.length; i++) {
     var b = D.buildings[i];
-    addPrism(sinks[b.t] || sinks.gen, b.p, b.h);
+    // скатные крыши — у малоэтажных домов с простым контуром
+    var pitched = (b.t === 'house' || b.t === 'garage' || b.t === 'civic') &&
+                  b.p.length <= 8 && b.h < 12 && polygonArea(b.p) < 700;
+    addPrism(sinks[b.t] || sinks.gen, b.p, b.h, pitched ? roofP : roofF, pitched);
     // точки «окон», светящиеся ночью
     if (b.h >= 4 && rng() < 0.75) {
       var nWin = 1 + Math.floor(b.h / 7);
@@ -268,6 +293,10 @@ function buildBuildings() {
     mats.bld[k2] = m;
     cityGroup.add(new THREE.Mesh(sinks[k2].build(), m));
   }
+  mats.roofP = new THREE.MeshPhongMaterial({ color: 0x96503e, side: THREE.DoubleSide, shininess: 2 });
+  mats.roofF = new THREE.MeshPhongMaterial({ color: 0x84888e, side: THREE.DoubleSide, shininess: 2 });
+  cityGroup.add(new THREE.Mesh(roofP.build(), mats.roofP));
+  cityGroup.add(new THREE.Mesh(roofF.build(), mats.roofF));
   var wg = new THREE.BufferGeometry();
   wg.setAttribute('position', new THREE.Float32BufferAttribute(winPos, 3));
   var wm = new THREE.PointsMaterial({ color: 0xffcf7d, size: 2.4, sizeAttenuation: true,
@@ -863,13 +892,17 @@ function updateWeather(clock) {
 // ------------------------------------------------------- seasons & palette
 var PALETTES = {
   summer: { ground: 0x6f8f5a, park: 0x5f9450, forest: 0x40683a, crown: 0x3f7a36,
-            beach: 0xe5d7a8, water: 0x4a80ae, pitch: 0x4e8a4e, cemetery: 0x5a7a52 },
+            beach: 0xe5d7a8, water: 0x4a80ae, pitch: 0x4e8a4e, cemetery: 0x5a7a52,
+            roofP: 0x96503e, roofF: 0x84888e },
   spring: { ground: 0x7d9a62, park: 0x74a85c, forest: 0x4f7a44, crown: 0x5f9c48,
-            beach: 0xe0d2a4, water: 0x4f7ba8, pitch: 0x5a9456, cemetery: 0x647f58 },
+            beach: 0xe0d2a4, water: 0x4f7ba8, pitch: 0x5a9456, cemetery: 0x647f58,
+            roofP: 0x96503e, roofF: 0x84888e },
   autumn: { ground: 0x84805a, park: 0x8c8a52, forest: 0x6d5e34, crown: 0xb07830,
-            beach: 0xd8caa0, water: 0x456e96, pitch: 0x6a8050, cemetery: 0x6c7456 },
+            beach: 0xd8caa0, water: 0x456e96, pitch: 0x6a8050, cemetery: 0x6c7456,
+            roofP: 0x8d4f3e, roofF: 0x7e8288 },
   winter: { ground: 0xe8edf2, park: 0xdfe6ec, forest: 0xc8d2da, crown: 0x8898a4,
-            beach: 0xe2e8ee, water: 0xc4d6e2, pitch: 0xd8e0e8, cemetery: 0xd2dae2 }
+            beach: 0xe2e8ee, water: 0xc4d6e2, pitch: 0xd8e0e8, cemetery: 0xd2dae2,
+            roofP: 0xe4e9ef, roofF: 0xdde3ea }
 };
 var currentPalette = null;
 function applySeasonPalette() {
@@ -884,6 +917,8 @@ function applySeasonPalette() {
   mats.cemetery.color.setHex(P.cemetery);
   treeCrownMat.color.setHex(P.crown);
   mats.water.color.setHex(P.water); // зимой залив замерзает — палитра светлеет
+  mats.roofP.color.setHex(P.roofP); // зимой крыши под снегом
+  mats.roofF.color.setHex(P.roofF);
 }
 
 // --------------------------------------------------------------- sky/light
