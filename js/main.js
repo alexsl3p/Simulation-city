@@ -309,6 +309,21 @@ function buildBuildings() {
     sink.tint = 0.8 + rng() * 0.35;
     roof.tint = 0.78 + rng() * 0.4;
     addPrism(sink, b.p, b.h, roof, pitched);
+    // шпили на церквях
+    if (b.t === 'church' && b.h >= 9) {
+      var scx = 0, scz = 0;
+      for (var sp = 0; sp < b.p.length; sp++) { scx += b.p[sp][0]; scz += b.p[sp][1]; }
+      scx /= b.p.length; scz /= b.p.length;
+      var spH = b.h * 0.9 + 6, spR = 2.6;
+      roofP.tint = 0.55; // тёмный шпиль
+      for (var se = 0; se < 8; se++) {
+        var a1 = se / 8 * 6.2832, a2 = (se + 1) / 8 * 6.2832;
+        var x1 = scx + Math.cos(a1) * spR, z1 = scz + Math.sin(a1) * spR;
+        var x2 = scx + Math.cos(a2) * spR, z2 = scz + Math.sin(a2) * spR;
+        var nx3 = Math.cos((a1 + a2) / 2), nz3 = Math.sin((a1 + a2) / 2);
+        roofP.tri(x1, b.h, z1, x2, b.h, z2, scx, b.h + spH, scz, nx3 * 0.8, 0.6, nz3 * 0.8);
+      }
+    }
     // точки «окон», светящиеся ночью; группа задаёт «расписание сна»
     if (b.h >= 4 && rng() < 0.75) {
       var nWin = 1 + Math.floor(b.h / 7);
