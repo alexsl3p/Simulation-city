@@ -1,0 +1,12 @@
+[out:json][timeout:120];
+(
+  node["amenity"~"^(bar|pub|nightclub|restaurant|cafe|fast_food|school|kindergarten|university|college|hospital|clinic|pharmacy|place_of_worship|theatre|cinema|library|bus_station|marketplace|fuel)$"](58.360,24.460,58.402,24.560);
+  way["amenity"~"^(bar|pub|nightclub|restaurant|cafe|fast_food|school|kindergarten|university|college|hospital|clinic|place_of_worship|theatre|cinema|library|marketplace)$"](58.360,24.460,58.402,24.560);
+  node["shop"~"^(supermarket|mall|convenience|department_store)$"](58.360,24.460,58.402,24.560);
+  way["shop"~"^(supermarket|mall)$"](58.360,24.460,58.402,24.560);
+  node["tourism"~"^(hotel|attraction|museum)$"](58.360,24.460,58.402,24.560);
+  way["tourism"~"^(hotel|museum)$"](58.360,24.460,58.402,24.560);
+  node["leisure"~"^(beach_resort|water_park|fitness_centre|sports_centre)$"](58.360,24.460,58.402,24.560);
+  way["leisure"~"^(beach_resort|water_park|stadium|sports_centre)$"](58.360,24.460,58.402,24.560);
+);
+out center;

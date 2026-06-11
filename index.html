@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Пярну — 3D симуляция города</title>
+<style>
+  html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#0a1226;
+    font-family:'Segoe UI', Roboto, Arial, sans-serif; }
+  #scene { position:fixed; inset:0; display:block; }
+
+  #loader { position:fixed; inset:0; background:#0a1226; color:#cfe3ff; display:flex;
+    flex-direction:column; align-items:center; justify-content:center; z-index:50;
+    transition:opacity .6s; }
+  #loader h1 { font-weight:300; letter-spacing:2px; }
+  #loader .bar { width:260px; height:4px; background:#1c2c4e; border-radius:2px; overflow:hidden; margin-top:14px; }
+  #loader .bar div { height:100%; width:0%; background:#5ea0ff; transition:width .2s; }
+  #loader small { margin-top:10px; opacity:.6; }
+
+  .panel { position:fixed; z-index:10; background:rgba(10,18,38,.82); color:#dce8ff;
+    border:1px solid rgba(120,160,255,.25); border-radius:10px; padding:10px 14px;
+    backdrop-filter:blur(6px); font-size:13px; }
+  #hud { top:12px; left:12px; min-width:265px; }
+  #hud h1 { margin:0 0 2px; font-size:16px; font-weight:600; }
+  #hud .sub { opacity:.55; font-size:11px; margin-bottom:8px; }
+  #clock { font-size:21px; font-variant-numeric:tabular-nums; }
+  #dateline { opacity:.85; margin-bottom:2px; }
+  #envline { opacity:.85; margin:4px 0 8px; }
+  #stats { opacity:.7; font-size:12px; margin-top:6px; }
+
+  .row { display:flex; gap:6px; align-items:center; margin:6px 0; flex-wrap:wrap; }
+  .row label { opacity:.7; min-width:62px; }
+  button, select, input[type=datetime-local] {
+    background:#16264a; color:#dce8ff; border:1px solid rgba(120,160,255,.35);
+    border-radius:6px; padding:4px 9px; font-size:12px; cursor:pointer; }
+  button:hover { background:#22386b; }
+  button.active { background:#3563c4; border-color:#7fa8ff; }
+  input[type=datetime-local] { color-scheme:dark; }
+
+  #help { bottom:12px; left:12px; font-size:11px; opacity:.85; max-width:330px; }
+  #help b { color:#9fc1ff; }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div id="loader">
+  <h1>PÄRNU · ПЯРНУ</h1>
+  <div class="bar"><div id="loadbar"></div></div>
+  <small id="loadmsg">Загрузка данных города…</small>
+</div>
+
+<div id="hud" class="panel">
+  <h1>Пярну, Эстония</h1>
+  <div class="sub">3D-симуляция по данным OpenStreetMap</div>
+  <div id="dateline">—</div>
+  <div id="clock">--:--</div>
+  <div id="envline">—</div>
+
+  <div class="row">
+    <label>Дата:</label>
+    <input type="datetime-local" id="datepick">
+    <button id="setdate">Задать</button>
+  </div>
+  <div class="row">
+    <label>Время:</label>
+    <button data-speed="0" title="Пауза">⏸</button>
+    <button data-speed="1" class="active">1×</button>
+    <button data-speed="30">30×</button>
+    <button data-speed="300">5 мин/с</button>
+    <button data-speed="1800">30 мин/с</button>
+    <button data-speed="7200">2 ч/с</button>
+  </div>
+  <div class="row">
+    <label>Погода:</label>
+    <select id="weather">
+      <option value="auto">Авто</option>
+      <option value="clear">Ясно</option>
+      <option value="cloudy">Облачно</option>
+      <option value="rain">Дождь</option>
+      <option value="snow">Снег</option>
+    </select>
+  </div>
+  <div id="stats">—</div>
+</div>
+
+<div id="help" class="panel">
+  <b>ЛКМ</b> — вращение · <b>ПКМ / Shift+ЛКМ</b> — сдвиг · <b>колесо</b> — масштаб ·
+  <b>WASD</b> — полёт · <b>Q/E</b> — высота.<br>
+  Толпы у баров и клубов — ночью в пт/сб; пляж — летним днём; школы — утром в будни.
+  <span style="opacity:.5">Данные карты © участники OpenStreetMap (ODbL).</span>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="data/parnu.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+[out:json][timeout:120];
+(
+  way["natural"~"^(water|beach|wood|coastline)$"](58.355,24.440,58.405,24.570);
+  way["waterway"="riverbank"](58.355,24.440,58.405,24.570);
+  way["leisure"~"^(park|garden|pitch|stadium|playground)$"](58.360,24.460,58.402,24.560);
+  way["landuse"~"^(forest|grass|cemetery|meadow|recreation_ground)$"](58.360,24.460,58.402,24.560);
+  relation["natural"="water"](58.355,24.440,58.405,24.570);
+);
+out geom;

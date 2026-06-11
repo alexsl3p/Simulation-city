@@ -1,0 +1,6 @@
+# сырые выгрузки Overpass (регенерируются запросами из tools/)
+data/buildings.json
+data/roads.json
+data/land.json
+data/pois.json
+node_modules/
