@@ -1283,6 +1283,30 @@ function updateClouds(dt) {
 
 // --------------------------------------------------------- camera controls
 var cam = { target: new THREE.Vector3(-100, 0, 300), dist: 1100, theta: -0.9, phi: 0.95 };
+var camTween = null;
+function flyTo(tx, tz, dist, phi, theta) {
+  var dth = theta == null ? 0 : (theta - cam.theta);
+  while (dth > Math.PI) dth -= 2 * Math.PI;   // кратчайший поворот
+  while (dth < -Math.PI) dth += 2 * Math.PI;
+  camTween = {
+    t: 0, dur: 1.5,
+    fx: cam.target.x, fz: cam.target.z, fd: cam.dist, fp: cam.phi, fth: cam.theta,
+    tx: tx, tz: tz, td: dist == null ? cam.dist : dist,
+    tp: phi == null ? cam.phi : phi, tth: cam.theta + dth
+  };
+}
+function updateCamTween(dt) {
+  if (!camTween) return;
+  camTween.t += dt;
+  var k = clamp(camTween.t / camTween.dur, 0, 1);
+  k = k * k * (3 - 2 * k); // ease in-out
+  cam.target.x = lerp(camTween.fx, camTween.tx, k);
+  cam.target.z = lerp(camTween.fz, camTween.tz, k);
+  cam.dist = lerp(camTween.fd, camTween.td, k);
+  cam.phi = lerp(camTween.fp, camTween.tp, k);
+  cam.theta = lerp(camTween.fth, camTween.tth, k);
+  if (k >= 1) camTween = null;
+}
 function applyCamera() {
   cam.phi = clamp(cam.phi, 0.08, 1.52);
   cam.dist = clamp(cam.dist, 25, 9000);
@@ -1299,6 +1323,7 @@ var keys = {};
   canvas.addEventListener('mousedown', function (e) {
     dragging = (e.button === 2 || e.shiftKey) ? 2 : 1;
     px = e.clientX; py = e.clientY;
+    camTween = null; // ручное управление отменяет перелёт
   });
   window.addEventListener('mouseup', function () { dragging = 0; });
   window.addEventListener('mousemove', function (e) {
@@ -1318,6 +1343,7 @@ var keys = {};
   });
   canvas.addEventListener('wheel', function (e) {
     e.preventDefault();
+    camTween = null;
     cam.dist *= Math.pow(1.0013, e.deltaY);
   }, { passive: false });
   window.addEventListener('keydown', function (e) { keys[e.code] = true; });
@@ -1347,6 +1373,8 @@ var keys = {};
   }, { passive: false });
 })();
 function updateKeysCamera(dt) {
+  if (keys.KeyW || keys.KeyS || keys.KeyA || keys.KeyD ||
+      keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight) camTween = null;
   var v = cam.dist * 0.9 * dt;
   var fx = -Math.cos(cam.theta), fz = -Math.sin(cam.theta);
   var rx = -fz, rz = fx;
@@ -1433,26 +1461,26 @@ function updateQuality(dt) {
   var PRESETS = {
     now: function () {
       sim.ms = Date.now(); sim.weatherMode = 'auto'; sim.speed = 1;
-      cam.target.set(-100, 0, 300); cam.dist = 1100; cam.phi = 0.95;
+      flyTo(-100, 300, 1100, 0.95);
     },
     friday: function () { // ночь пятницы: толпы у баров старого города
       var y = new Date(sim.ms).getUTCFullYear();
       sim.ms = nthFridayOfJuly(y, 3).getTime() + (20 * 60 + 30) * 60e3; // 23:30 местного
       sim.weatherMode = 'clear'; sim.speed = 60;
       var c = catCenter('night');
-      cam.target.set(c.x, 0, c.z); cam.dist = 350; cam.phi = 0.85;
+      flyTo(c.x, c.z, 350, 0.85);
     },
     beach: function () { // субботний полдень на пляже
       var y = new Date(sim.ms).getUTCFullYear();
       sim.ms = nthFridayOfJuly(y, 3).getTime() + DAY_MS + 10 * 3600e3; // сб 13:00 местного
       sim.weatherMode = 'clear'; sim.speed = 60;
       var c = catCenter('beach', 12);
-      cam.target.set(c.x, 0, c.z); cam.dist = 650; cam.phi = 1.0; cam.theta = 1.6;
+      flyTo(c.x, c.z, 650, 1.0, 1.6);
     },
     winter: function () { // заснеженный центр в январе
       var y = new Date(sim.ms).getUTCFullYear();
       sim.ms = Date.UTC(y, 0, 20, 10, 0); sim.weatherMode = 'snow'; sim.speed = 60;
-      cam.target.set(-100, 0, 300); cam.dist = 900; cam.phi = 0.9;
+      flyTo(-100, 300, 900, 0.9);
     }
   };
   document.querySelectorAll('button[data-preset]').forEach(function (b) {
@@ -1530,8 +1558,7 @@ function buildMinimap() {
     var rect = mmCanvas.getBoundingClientRect();
     var mx = (e.clientX - rect.left) * (MM_SIZE / rect.width);
     var mz = (e.clientY - rect.top) * (MM_SIZE / rect.height);
-    cam.target.x = (mx - MM_SIZE / 2) / MM_SCALE;
-    cam.target.z = (mz - MM_SIZE / 2) / MM_SCALE;
+    flyTo((mx - MM_SIZE / 2) / MM_SCALE, (mz - MM_SIZE / 2) / MM_SCALE);
   });
 }
 var mmAccum = 1;
@@ -1578,6 +1605,7 @@ function loop() {
   }
   updateBoats(dt, simDt);
   updateKeysCamera(dt);
+  updateCamTween(dt);
   applyCamera();
   updatePoiLabels(dt);
   updateQuality(dt);
