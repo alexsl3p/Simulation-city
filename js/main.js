@@ -1439,13 +1439,16 @@ var keys = {};
   window.addEventListener('keydown', function (e) { keys[e.code] = true; });
   window.addEventListener('keyup', function (e) { keys[e.code] = false; });
 
-  // touch: 1 палец — вращение, 2 — pinch-zoom
-  var lastTouchDist = 0;
+  // touch: 1 палец — вращение, 2 пальца — pinch-zoom и сдвиг
+  var lastTouchDist = 0, lastMidX = 0, lastMidY = 0;
   canvas.addEventListener('touchstart', function (e) {
+    camTween = null;
     if (e.touches.length === 1) { px = e.touches[0].clientX; py = e.touches[0].clientY; }
     else if (e.touches.length === 2) {
       lastTouchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
                                  e.touches[0].clientY - e.touches[1].clientY);
+      lastMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      lastMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
     }
   }, { passive: true });
   canvas.addEventListener('touchmove', function (e) {
@@ -1459,6 +1462,16 @@ var keys = {};
                          e.touches[0].clientY - e.touches[1].clientY);
       cam.dist *= lastTouchDist / d;
       lastTouchDist = d;
+      // сдвиг карты движением двух пальцев
+      var midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      var midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      var mdx = midX - lastMidX, mdy = midY - lastMidY;
+      lastMidX = midX; lastMidY = midY;
+      var k = cam.dist * 0.0016;
+      var fx = -Math.cos(cam.theta), fz = -Math.sin(cam.theta);
+      var rx = -fz, rz = fx;
+      cam.target.x += (-mdx * rx + mdy * fx) * k;
+      cam.target.z += (-mdx * rz + mdy * fz) * k;
     }
   }, { passive: false });
 })();
@@ -1530,6 +1543,11 @@ function updateQuality(dt) {
   });
   document.getElementById('shadows').addEventListener('change', function (e) {
     sun.castShadow = e.target.checked;
+  });
+  document.getElementById('hudtoggle').addEventListener('click', function () {
+    var hud = document.getElementById('hud');
+    hud.classList.toggle('collapsed');
+    this.textContent = hud.classList.contains('collapsed') ? '▸' : '▾';
   });
 
   // готовые сцены: дата + погода + точка города

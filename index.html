@@ -7,7 +7,7 @@
 <style>
   html, body { margin:0; padding:0; overflow:hidden; height:100%; background:#0a1226;
     font-family:'Segoe UI', Roboto, Arial, sans-serif; }
-  #scene { position:fixed; inset:0; display:block; }
+  #scene { position:fixed; inset:0; display:block; touch-action:none; }
 
   #loader { position:fixed; inset:0; background:#0a1226; color:#cfe3ff; display:flex;
     flex-direction:column; align-items:center; justify-content:center; z-index:50;
@@ -43,6 +43,18 @@
   #minimap { position:fixed; right:12px; bottom:12px; z-index:10; width:210px; height:210px;
     border:1px solid rgba(120,160,255,.3); border-radius:10px; cursor:crosshair;
     background:rgba(10,18,38,.85); }
+
+  #hudtoggle { position:absolute; top:8px; right:10px; background:none; border:none;
+    color:#9fc1ff; font-size:14px; padding:2px 6px; }
+  #hud.collapsed > :not(h1):not(#hudtoggle):not(#clock) { display:none; }
+
+  @media (max-width:640px) {
+    #hud { font-size:12px; min-width:0; max-width:70vw; padding:8px 10px; }
+    #clock { font-size:17px; }
+    #help { display:none; }
+    #minimap { width:130px; height:130px; }
+    button, select, input[type=datetime-local] { font-size:11px; padding:3px 7px; }
+  }
 </style>
 </head>
 <body>
@@ -55,6 +67,7 @@
 </div>
 
 <div id="hud" class="panel">
+  <button id="hudtoggle" title="Свернуть панель">▾</button>
   <h1>Пярну, Эстония</h1>
   <div class="sub">3D-симуляция по данным OpenStreetMap</div>
   <div id="dateline">—</div>
