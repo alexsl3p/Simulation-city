@@ -1409,13 +1409,34 @@ function applyCamera() {
 var keys = {};
 (function initControls() {
   var dragging = 0, px = 0, py = 0;
+  var downX = 0, downY = 0;
+  var raycaster = new THREE.Raycaster();
+  function tryLabelClick(cx, cy) {
+    // клик по подписи заведения — перелёт к нему
+    var ndc = new THREE.Vector2((cx / window.innerWidth) * 2 - 1,
+                                -(cy / window.innerHeight) * 2 + 1);
+    raycaster.setFromCamera(ndc, camera);
+    var visible = [];
+    for (var i = 0; i < poiLabels.length; i++) if (poiLabels[i].visible) visible.push(poiLabels[i]);
+    var hits = raycaster.intersectObjects(visible);
+    if (hits.length) {
+      var p = hits[0].object.position;
+      flyTo(p.x, p.z, Math.min(cam.dist, 230), 1.05);
+    }
+  }
   canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   canvas.addEventListener('mousedown', function (e) {
     dragging = (e.button === 2 || e.shiftKey) ? 2 : 1;
     px = e.clientX; py = e.clientY;
+    downX = e.clientX; downY = e.clientY;
     camTween = null; // ручное управление отменяет перелёт
   });
-  window.addEventListener('mouseup', function () { dragging = 0; });
+  window.addEventListener('mouseup', function (e) {
+    if (dragging === 1 && Math.abs(e.clientX - downX) < 6 && Math.abs(e.clientY - downY) < 6) {
+      tryLabelClick(e.clientX, e.clientY);
+    }
+    dragging = 0;
+  });
   window.addEventListener('mousemove', function (e) {
     if (!dragging) return;
     var dx = e.clientX - px, dy = e.clientY - py;
