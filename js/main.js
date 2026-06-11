@@ -407,6 +407,32 @@ function buildStars() {
   scene.add(starPts);
 }
 
+// ------------------------------------------------------------- sun & moon
+var sunSprite, moonSprite;
+function discTexture(inner, outer) {
+  var cvs = document.createElement('canvas');
+  cvs.width = cvs.height = 128;
+  var ctx = cvs.getContext('2d');
+  var g = ctx.createRadialGradient(64, 64, 6, 64, 64, 62);
+  g.addColorStop(0, inner);
+  g.addColorStop(0.35, inner);
+  g.addColorStop(1, outer);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(cvs);
+}
+function buildSkyBodies() {
+  var sm = new THREE.SpriteMaterial({ map: discTexture('rgba(255,250,230,1)', 'rgba(255,220,120,0)'),
+    transparent: true, opacity: 0, depthWrite: false, fog: false, blending: THREE.AdditiveBlending });
+  sunSprite = new THREE.Sprite(sm);
+  sunSprite.scale.set(1500, 1500, 1);
+  scene.add(sunSprite);
+  var mm = new THREE.SpriteMaterial({ map: discTexture('rgba(228,232,240,1)', 'rgba(190,200,220,0)'),
+    transparent: true, opacity: 0, depthWrite: false, fog: false });
+  moonSprite = new THREE.Sprite(mm);
+  moonSprite.scale.set(600, 600, 1);
+  scene.add(moonSprite);
+}
+
 // --------------------------------------------------------------- weather fx
 var clouds = [], cloudOpacityTarget = 0;
 function buildClouds() {
@@ -1070,6 +1096,18 @@ function updateSky() {
     nightGlowMats[i].opacity = darkness * (nightGlowMats[i] === starPts.material && cloudy ? 0.15 : 0.95);
   }
   cloudOpacityTarget = overcast ? 0.85 : (sim.weather === 'clear' ? 0.12 : 0.4);
+
+  // диски солнца и луны
+  if (sunSprite) {
+    sunSprite.position.copy(cam.target).addScaledVector(dir, 8500);
+    sunSprite.material.opacity = overcast ? 0 : smoothstep(-0.06, 0.02, alt) * 0.95;
+    sunSprite.material.color.setHex(0xffffff).lerp(new THREE.Color(0xff7030), dawnF * 0.85);
+    var malt = -alt, maz = az + Math.PI;
+    var mdir = new THREE.Vector3(-Math.sin(maz) * Math.cos(malt), Math.sin(malt),
+                                 Math.cos(maz) * Math.cos(malt));
+    moonSprite.position.copy(cam.target).addScaledVector(mdir, 8500);
+    moonSprite.material.opacity = malt > 0 ? darkness * (overcast ? 0.08 : 0.8) : 0;
+  }
   return dayF;
 }
 
@@ -1300,7 +1338,7 @@ var stages = [
   ['Улицы и дороги…', function () { buildRoads(); }],
   ['Здания (' + D.buildings.length + ')…', function () { buildBuildings(); }],
   ['Деревья и парки…', function () { buildTrees(); }],
-  ['Освещение и небо…', function () { buildStreetLamps(); buildStars(); buildClouds(); buildPrecip(); }],
+  ['Освещение и небо…', function () { buildStreetLamps(); buildStars(); buildSkyBodies(); buildClouds(); buildPrecip(); }],
   ['Дорожный граф…', function () {
     carGraph = buildGraph({ maj: 1, res: 1, srv: 1 });
     walkGraph = buildGraph({ ped: 1, res: 1, srv: 1, maj: 1 });
