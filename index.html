@@ -39,6 +39,10 @@
 
   #help { bottom:12px; left:12px; font-size:11px; opacity:.85; max-width:330px; }
   #help b { color:#9fc1ff; }
+
+  #minimap { position:fixed; right:12px; bottom:12px; z-index:10; width:210px; height:210px;
+    border:1px solid rgba(120,160,255,.3); border-radius:10px; cursor:crosshair;
+    background:rgba(10,18,38,.85); }
 </style>
 </head>
 <body>
@@ -92,6 +96,8 @@
   </div>
   <div id="stats">—</div>
 </div>
+
+<canvas id="minimap" width="210" height="210"></canvas>
 
 <div id="help" class="panel">
   <b>ЛКМ</b> — вращение · <b>ПКМ / Shift+ЛКМ</b> — сдвиг · <b>колесо</b> — масштаб ·

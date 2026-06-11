@@ -1455,6 +1455,79 @@ function updateQuality(dt) {
   });
 })();
 
+// ---------------------------------------------------------------- minimap
+var mmCanvas = document.getElementById('minimap');
+var mmCtx = mmCanvas.getContext('2d');
+var mmBase = document.createElement('canvas');
+var MM_SIZE = 210, MM_SPAN = 7400, MM_SCALE = MM_SIZE / MM_SPAN;
+function w2m(x, z) { return [MM_SIZE / 2 + x * MM_SCALE, MM_SIZE / 2 + z * MM_SCALE]; }
+function buildMinimap() {
+  mmBase.width = mmBase.height = MM_SIZE;
+  var c = mmBase.getContext('2d');
+  c.fillStyle = '#1c2c1e';
+  c.fillRect(0, 0, MM_SIZE, MM_SIZE);
+  function poly(pts) {
+    c.beginPath();
+    var m0 = w2m(pts[0][0], pts[0][1]);
+    c.moveTo(m0[0], m0[1]);
+    for (var i = 1; i < pts.length; i++) {
+      var m = w2m(pts[i][0], pts[i][1]);
+      c.lineTo(m[0], m[1]);
+    }
+    c.closePath(); c.fill();
+  }
+  var i;
+  c.fillStyle = '#3a5c33';
+  for (i = 0; i < D.land.length; i++) {
+    if (D.land[i].t === 'park' || D.land[i].t === 'forest') poly(D.land[i].p);
+  }
+  c.fillStyle = '#cfc08a';
+  for (i = 0; i < D.land.length; i++) if (D.land[i].t === 'beach') poly(D.land[i].p);
+  c.fillStyle = '#2c5f8a';
+  if (D.sea) poly(D.sea);
+  for (i = 0; i < D.land.length; i++) if (D.land[i].t === 'water') poly(D.land[i].p);
+  c.strokeStyle = '#8a8f96'; c.lineWidth = 1;
+  for (i = 0; i < D.roads.length; i++) {
+    var r = D.roads[i];
+    if (r.t !== 'maj' && r.t !== 'res') continue;
+    c.beginPath();
+    var s0 = w2m(r.p[0][0], r.p[0][1]);
+    c.moveTo(s0[0], s0[1]);
+    for (var j = 1; j < r.p.length; j++) {
+      var s1 = w2m(r.p[j][0], r.p[j][1]);
+      c.lineTo(s1[0], s1[1]);
+    }
+    c.stroke();
+  }
+  mmCanvas.addEventListener('click', function (e) {
+    var rect = mmCanvas.getBoundingClientRect();
+    var mx = (e.clientX - rect.left) * (MM_SIZE / rect.width);
+    var mz = (e.clientY - rect.top) * (MM_SIZE / rect.height);
+    cam.target.x = (mx - MM_SIZE / 2) / MM_SCALE;
+    cam.target.z = (mz - MM_SIZE / 2) / MM_SCALE;
+  });
+}
+var mmAccum = 1;
+function updateMinimap(dt) {
+  mmAccum += dt;
+  if (mmAccum < 0.25) return;
+  mmAccum = 0;
+  mmCtx.clearRect(0, 0, MM_SIZE, MM_SIZE);
+  mmCtx.drawImage(mmBase, 0, 0);
+  // маркер камеры: точка цели и сектор обзора
+  var m = w2m(cam.target.x, cam.target.z);
+  var a = cam.theta + Math.PI; // взгляд камеры направлен от позиции к цели
+  mmCtx.fillStyle = 'rgba(255,210,80,0.25)';
+  mmCtx.beginPath();
+  mmCtx.moveTo(m[0], m[1]);
+  mmCtx.arc(m[0], m[1], 16, a - 0.5, a + 0.5);
+  mmCtx.closePath(); mmCtx.fill();
+  mmCtx.fillStyle = '#ffd250';
+  mmCtx.beginPath(); mmCtx.arc(m[0], m[1], 3.2, 0, 6.3); mmCtx.fill();
+  mmCtx.strokeStyle = 'rgba(255,210,80,0.8)'; mmCtx.lineWidth = 1;
+  mmCtx.beginPath(); mmCtx.arc(m[0], m[1], 3.2, 0, 6.3); mmCtx.stroke();
+}
+
 // -------------------------------------------------------------- main loop
 var lastFrame = performance.now();
 function loop() {
@@ -1481,6 +1554,7 @@ function loop() {
   applyCamera();
   updatePoiLabels(dt);
   updateQuality(dt);
+  updateMinimap(dt);
   updateUI(dt);
   renderer.render(scene, camera);
 }
@@ -1498,7 +1572,7 @@ var stages = [
     carGraph = buildGraph({ maj: 1, res: 1, srv: 1 });
     walkGraph = buildGraph({ ped: 1, res: 1, srv: 1, maj: 1 });
   }],
-  ['Жители и транспорт…', function () { preparePois(); buildPoiLabels(); buildAgents(); buildBoats(); }]
+  ['Жители и транспорт…', function () { preparePois(); buildPoiLabels(); buildAgents(); buildBoats(); buildMinimap(); }]
 ];
 var stageIdx = 0;
 function runStage() {
