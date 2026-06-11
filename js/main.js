@@ -252,9 +252,12 @@ function buildWaterAndLand() {
   var yOf = { water: 0.06, beach: 0.045, park: 0.02, forest: 0.03, pitch: 0.05, cemetery: 0.035 };
   for (var i = 0; i < D.land.length; i++) {
     var L = D.land[i];
-    if (L.p.length >= 3 && sinks[L.t]) addFlatPoly(sinks[L.t], L.p, yOf[L.t]);
+    if (L.p.length >= 3 && sinks[L.t]) {
+      addFlatPoly(sinks[L.t], L.p, yOf[L.t]);
+      if (L.t === 'water') cacheWaterPoly(L.p);
+    }
   }
-  if (D.sea) addFlatPoly(sinks.water, D.sea, 0.06);
+  if (D.sea) { addFlatPoly(sinks.water, D.sea, 0.06); cacheWaterPoly(D.sea); }
 
   mats.water = new THREE.MeshLambertMaterial({ color: 0x4a80ae, side: THREE.DoubleSide });
   mats.beach = flatMat(0xe5d7a8);
@@ -428,6 +431,108 @@ function buildStars() {
   nightGlowMats.push(m);
   starPts = new THREE.Points(g, m);
   scene.add(starPts);
+}
+
+// ------------------------------------------------------------------ boats
+// Реальные гавани Пярну из OSM: Jahtklubi, Talvesadam, Japsi, Vana-Sauga, Vanasadam
+var HARBORS = [[-523, -55], [-265, 144], [-589, -364], [-1263, -473], [-221, -174]];
+var waterPolys = [];   // полигоны воды с bbox — для посадки лодок
+var boatGroup, mooredBoats = [], sailBoats = [];
+function cacheWaterPoly(pts) {
+  var minx = 1e9, maxx = -1e9, minz = 1e9, maxz = -1e9;
+  for (var i = 0; i < pts.length; i++) {
+    minx = Math.min(minx, pts[i][0]); maxx = Math.max(maxx, pts[i][0]);
+    minz = Math.min(minz, pts[i][1]); maxz = Math.max(maxz, pts[i][1]);
+  }
+  waterPolys.push({ p: pts, minx: minx, maxx: maxx, minz: minz, maxz: maxz });
+}
+function findWaterNear(x, z, rmax, rng) {
+  for (var t = 0; t < 80; t++) {
+    var cx = x + (rng() - 0.5) * 2 * rmax, cz = z + (rng() - 0.5) * 2 * rmax;
+    for (var w = 0; w < waterPolys.length; w++) {
+      var wp = waterPolys[w];
+      if (cx < wp.minx || cx > wp.maxx || cz < wp.minz || cz > wp.maxz) continue;
+      if (pointInPoly(cx, cz, wp.p)) return [cx, cz];
+    }
+  }
+  return null;
+}
+function buildBoats() {
+  var hull = new THREE.BoxGeometry(5.5, 1.0, 1.9);
+  hull.translate(0, 0.55, 0);
+  var cabin = new THREE.BoxGeometry(1.8, 0.7, 1.3);
+  cabin.translate(-0.4, 1.35, 0);
+  var mast = new THREE.CylinderGeometry(0.06, 0.09, 7, 5);
+  mast.translate(0.6, 4.5, 0);
+  var boatGeom = mergeGeoms([hull, cabin, mast]);
+  // парус — треугольник
+  var sailG = new THREE.BufferGeometry();
+  sailG.setAttribute('position', new THREE.Float32BufferAttribute(
+    [0.5, 2.0, 0, 0.5, 7.6, 0, 3.4, 2.0, 0], 3));
+  sailG.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
+  var yachtGeom = mergeGeoms([hull, cabin, mast, sailG]);
+
+  var rng = mulberry32(777);
+  boatGroup = new THREE.Group();
+  // пришвартованные лодки у реальных гаваней
+  for (var h = 0; h < HARBORS.length; h++) {
+    var n = 2 + Math.floor(rng() * 2);
+    for (var b = 0; b < n; b++) {
+      var pos = findWaterNear(HARBORS[h][0], HARBORS[h][1], 90, rng);
+      if (pos) mooredBoats.push({ x: pos[0], z: pos[1], ang: rng() * 6.28, ph: rng() * 6.28 });
+    }
+  }
+  var mooredMesh = new THREE.InstancedMesh(boatGeom,
+    new THREE.MeshLambertMaterial({ color: 0xffffff }), Math.max(mooredBoats.length, 1));
+  // ходовые яхты в заливе
+  for (var s = 0; s < 3; s++) {
+    var anchor = findWaterNear(-1200 + s * 700, 2800, 600, rng);
+    if (anchor) sailBoats.push({ ax: anchor[0], az: anchor[1], r: 150 + rng() * 200,
+                                 a: rng() * 6.28, w: (0.4 + rng() * 0.5) / 200 });
+  }
+  var sailMesh = new THREE.InstancedMesh(yachtGeom,
+    new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }),
+    Math.max(sailBoats.length, 1));
+  var hullCol = [0xf0f0f0, 0xdce4ec, 0x3a5a8a, 0x8a3a3a, 0xe8e0d0];
+  var i;
+  for (i = 0; i < mooredBoats.length; i++) {
+    mooredMesh.setColorAt(i, new THREE.Color(hullCol[Math.floor(rng() * hullCol.length)]));
+  }
+  for (i = 0; i < sailBoats.length; i++) sailMesh.setColorAt(i, new THREE.Color(0xffffff));
+  mooredMesh.frustumCulled = sailMesh.frustumCulled = false;
+  mooredMesh.castShadow = sailMesh.castShadow = true;
+  boatGroup.add(mooredMesh); boatGroup.add(sailMesh);
+  boatGroup.userData = { mooredMesh: mooredMesh, sailMesh: sailMesh };
+  scene.add(boatGroup);
+}
+function updateBoats(dt, simDt) {
+  if (!boatGroup) return;
+  boatGroup.visible = sim.season !== 'winter'; // зимой залив замерзает
+  if (!boatGroup.visible) return;
+  var t = performance.now() / 1000;
+  var md = boatGroup.userData.mooredMesh, sd = boatGroup.userData.sailMesh;
+  var i;
+  for (i = 0; i < mooredBoats.length; i++) {
+    var m = mooredBoats[i];
+    dummy.position.set(m.x, 0.1 + Math.sin(t * 0.8 + m.ph) * 0.07, m.z);
+    dummy.rotation.set(Math.sin(t * 0.6 + m.ph) * 0.02, m.ang, 0);
+    dummy.scale.set(1, 1, 1);
+    dummy.updateMatrix();
+    md.setMatrixAt(i, dummy.matrix);
+  }
+  md.instanceMatrix.needsUpdate = true;
+  var moveDt = Math.min(simDt, 0.0333 * 120);
+  for (i = 0; i < sailBoats.length; i++) {
+    var s = sailBoats[i];
+    s.a += s.w * moveDt * 3;
+    var x = s.ax + Math.cos(s.a) * s.r, z = s.az + Math.sin(s.a) * s.r;
+    dummy.position.set(x, 0.1 + Math.sin(t + i) * 0.1, z);
+    dummy.rotation.set(Math.sin(t * 0.7 + i) * 0.04, -(s.a + Math.PI / 2), 0);
+    dummy.scale.set(1, 1, 1);
+    dummy.updateMatrix();
+    sd.setMatrixAt(i, dummy.matrix);
+  }
+  sd.instanceMatrix.needsUpdate = true;
 }
 
 // ------------------------------------------------------------- sun & moon
@@ -1353,6 +1458,7 @@ function loop() {
     updateCars(simDt, clock);
     updatePeds(simDt, clock);
   }
+  updateBoats(dt, simDt);
   updateKeysCamera(dt);
   applyCamera();
   updatePoiLabels(dt);
@@ -1373,7 +1479,7 @@ var stages = [
     carGraph = buildGraph({ maj: 1, res: 1, srv: 1 });
     walkGraph = buildGraph({ ped: 1, res: 1, srv: 1, maj: 1 });
   }],
-  ['Жители и транспорт…', function () { preparePois(); buildPoiLabels(); buildAgents(); }]
+  ['Жители и транспорт…', function () { preparePois(); buildPoiLabels(); buildAgents(); buildBoats(); }]
 ];
 var stageIdx = 0;
 function runStage() {
