@@ -535,6 +535,57 @@ function updateBoats(dt, simDt) {
   sd.instanceMatrix.needsUpdate = true;
 }
 
+// ------------------------------------------------------------------ birds
+var birdMesh, birds = [];
+function buildBirds() {
+  // силуэт чайки: два крыла-треугольника
+  var g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute([
+    0, 0, 0.5, -1.4, 0.4, 0, 0, 0, -0.5,
+    0, 0, 0.5, 0, 0, -0.5, 1.4, 0.4, 0
+  ], 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute([
+    0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0
+  ], 3));
+  birdMesh = new THREE.InstancedMesh(g,
+    new THREE.MeshBasicMaterial({ color: 0x4a4f55, side: THREE.DoubleSide }), 26);
+  birdMesh.frustumCulled = false;
+  scene.add(birdMesh);
+  var rng = mulberry32(314);
+  for (var i = 0; i < 26; i++) {
+    // якоря — над пляжем и заливом
+    var anchor = findWaterNear(-900 + rng() * 1800, 2000 + rng() * 1200, 700, rng) ||
+                 [-500 + rng() * 1000, 1800 + rng() * 800];
+    birds.push({ ax: anchor[0], az: anchor[1], r: 25 + rng() * 110,
+                 a: rng() * 6.28, w: (0.6 + rng() * 0.7) / 40 * (rng() < 0.5 ? 1 : -1),
+                 h: 22 + rng() * 38, ph: rng() * 6.28 });
+  }
+}
+var birdsVisible = true;
+function updateBirds(dt, simDt, dayF) {
+  if (!birdMesh) return;
+  var show = sim.season !== 'winter' && sim.weather !== 'rain' && sim.weather !== 'snow' &&
+             dayF > 0.3;
+  birdMesh.visible = show;
+  if (!show) return;
+  var moveDt = Math.min(simDt, 0.0333 * 120) || dt;
+  var t = performance.now() / 1000;
+  for (var i = 0; i < birds.length; i++) {
+    var b = birds[i];
+    b.a += b.w * moveDt * 4;
+    dummy.position.set(b.ax + Math.cos(b.a) * b.r,
+                       b.h + Math.sin(t * 1.3 + b.ph) * 3,
+                       b.az + Math.sin(b.a) * b.r);
+    dummy.rotation.set(0, -(b.a + (b.w > 0 ? Math.PI / 2 : -Math.PI / 2)), 0);
+    // взмах крыльев — масштаб по вертикали
+    var flap = 1 + Math.sin(t * 7 + b.ph) * 0.6;
+    dummy.scale.set(1.6, 1.6 * flap, 1.6);
+    dummy.updateMatrix();
+    birdMesh.setMatrixAt(i, dummy.matrix);
+  }
+  birdMesh.instanceMatrix.needsUpdate = true;
+}
+
 // ------------------------------------------------------------- sun & moon
 var sunSprite, moonSprite;
 function discTexture(inner, outer) {
@@ -1596,7 +1647,7 @@ function loop() {
   var clock = localClock(sim.ms);
   updateWeather(clock);
   applySeasonPalette();
-  updateSky();
+  var dayF = updateSky();
   updateClouds(dt);
   updatePrecip(dt, cam.target);
   if (sim.speed > 0) {
@@ -1604,6 +1655,7 @@ function loop() {
     updatePeds(simDt, clock);
   }
   updateBoats(dt, simDt);
+  updateBirds(dt, simDt, dayF);
   updateKeysCamera(dt);
   updateCamTween(dt);
   applyCamera();
@@ -1627,7 +1679,7 @@ var stages = [
     carGraph = buildGraph({ maj: 1, res: 1, srv: 1 });
     walkGraph = buildGraph({ ped: 1, res: 1, srv: 1, maj: 1 });
   }],
-  ['Жители и транспорт…', function () { preparePois(); buildPoiLabels(); buildPoiGlow(); buildAgents(); buildBoats(); buildMinimap(); }]
+  ['Жители и транспорт…', function () { preparePois(); buildPoiLabels(); buildPoiGlow(); buildAgents(); buildBoats(); buildBirds(); buildMinimap(); }]
 ];
 var stageIdx = 0;
 function runStage() {
