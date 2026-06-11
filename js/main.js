@@ -789,7 +789,10 @@ function updateCars(simDt, clock) {
     var c = spawnCar(agentRng);
     if (c) cars.push(c);
   }
-  if (cars.length > target && agentRng() < 0.1) cars.pop();
+  if (cars.length > target) {
+    var cdrop = cars.length - target > 25 ? 2 : (agentRng() < 0.1 ? 1 : 0);
+    while (cdrop-- > 0 && cars.length > target) cars.pop();
+  }
   var g = carGraph;
   var moveDt = Math.min(simDt, 0.0333 * 120); // движение «не быстрее» 120×
   for (var i = 0; i < cars.length; i++) {
@@ -860,7 +863,11 @@ function updatePeds(simDt, clock) {
     p.x = N[0]; p.z = N[1];
     peds.push(p);
   }
-  if (peds.length > target && agentRng() < 0.15) peds.pop();
+  if (peds.length > target) {
+    // при сильном избытке (смена сцены/сезона) рассасываемся быстрее
+    var drop = peds.length - target > 40 ? 3 : (agentRng() < 0.15 ? 1 : 0);
+    while (drop-- > 0 && peds.length > target) peds.pop();
+  }
 
   var fast = sim.speed > 120;
   if (fast) {
@@ -1187,6 +1194,61 @@ function updateUI(dt) {
   });
   document.getElementById('labels').addEventListener('change', function (e) {
     labelsEnabled = e.target.checked;
+  });
+
+  // готовые сцены: дата + погода + точка города
+  function catCenter(cat, n) {
+    var list = (poiByCat[cat] || []).slice(0, n || 8);
+    if (!list.length) return { x: 0, z: 0 };
+    var cx = 0, cz = 0;
+    list.forEach(function (p) { cx += p.x; cz += p.z; });
+    return { x: cx / list.length, z: cz / list.length };
+  }
+  function nthFridayOfJuly(year, n) {
+    var d = new Date(Date.UTC(year, 6, 1));
+    var fridays = 0;
+    while (true) {
+      if (d.getUTCDay() === 5 && ++fridays === n) return d;
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+  }
+  var PRESETS = {
+    now: function () {
+      sim.ms = Date.now(); sim.weatherMode = 'auto'; sim.speed = 1;
+      cam.target.set(-100, 0, 300); cam.dist = 1100; cam.phi = 0.95;
+    },
+    friday: function () { // ночь пятницы: толпы у баров старого города
+      var y = new Date(sim.ms).getUTCFullYear();
+      sim.ms = nthFridayOfJuly(y, 3).getTime() + (20 * 60 + 30) * 60e3; // 23:30 местного
+      sim.weatherMode = 'clear'; sim.speed = 60;
+      var c = catCenter('night');
+      cam.target.set(c.x, 0, c.z); cam.dist = 350; cam.phi = 0.85;
+    },
+    beach: function () { // субботний полдень на пляже
+      var y = new Date(sim.ms).getUTCFullYear();
+      sim.ms = nthFridayOfJuly(y, 3).getTime() + DAY_MS + 10 * 3600e3; // сб 13:00 местного
+      sim.weatherMode = 'clear'; sim.speed = 60;
+      var c = catCenter('beach', 12);
+      cam.target.set(c.x, 0, c.z); cam.dist = 650; cam.phi = 1.0; cam.theta = 1.6;
+    },
+    winter: function () { // заснеженный центр в январе
+      var y = new Date(sim.ms).getUTCFullYear();
+      sim.ms = Date.UTC(y, 0, 20, 10, 0); sim.weatherMode = 'snow'; sim.speed = 60;
+      cam.target.set(-100, 0, 300); cam.dist = 900; cam.phi = 0.9;
+    }
+  };
+  document.querySelectorAll('button[data-preset]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      PRESETS[b.dataset.preset]();
+      lastScatterMs = 0;
+      var dp2 = document.getElementById('datepick');
+      var d = new Date(sim.ms - new Date(sim.ms).getTimezoneOffset() * 60000);
+      dp2.value = d.toISOString().slice(0, 16);
+      document.getElementById('weather').value = sim.weatherMode;
+      document.querySelectorAll('button[data-speed]').forEach(function (x) {
+        x.classList.toggle('active', +x.dataset.speed === sim.speed);
+      });
+    });
   });
   var dp = document.getElementById('datepick');
   function msToLocalInput(ms) {
