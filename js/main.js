@@ -135,13 +135,15 @@ window.addEventListener('resize', function () {
 // --------------------------------------------------- geometry construction
 // Аккумулятор треугольников: положили точки — получили один merged-меш.
 function GeomSink(useColor) {
-  this.pos = []; this.norm = [];
+  this.pos = []; this.norm = []; this.uv = [];
   this.col = useColor ? [] : null;
   this.tint = 1;
 }
-GeomSink.prototype.tri = function (ax, ay, az, bx, by, bz, cx, cy, cz, nx, ny, nz) {
+GeomSink.prototype.tri = function (ax, ay, az, bx, by, bz, cx, cy, cz, nx, ny, nz,
+                                   ua, va, ub, vb, uc, vc) {
   this.pos.push(ax, ay, az, bx, by, bz, cx, cy, cz);
   this.norm.push(nx, ny, nz, nx, ny, nz, nx, ny, nz);
+  this.uv.push(ua || 0, va || 0, ub || 0, vb || 0, uc || 0, vc || 0);
   if (this.col) {
     var t = this.tint;
     this.col.push(t, t, t, t, t, t, t, t, t);
@@ -151,9 +153,71 @@ GeomSink.prototype.build = function () {
   var g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(this.norm, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
   if (this.col) g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 3));
   return g;
 };
+
+// ------------------------------------------------------ procedural textures
+var TEX = {};
+function makeTex(w, h, draw) {
+  var cvs = document.createElement('canvas');
+  cvs.width = w; cvs.height = h;
+  draw(cvs.getContext('2d'), w, h);
+  var t = new THREE.CanvasTexture(cvs);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 4;
+  return t;
+}
+function buildTextures() {
+  // фасад: одна ячейка 4×3 м с окном (тайлится по этажам и пролётам)
+  TEX.facade = makeTex(128, 128, function (c, w, h) {
+    c.fillStyle = '#eceae4'; c.fillRect(0, 0, w, h);
+    for (var i = 0; i < 350; i++) { // штукатурка
+      c.fillStyle = 'rgba(60,50,40,' + (Math.random() * 0.05).toFixed(3) + ')';
+      c.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+    c.fillStyle = '#cdc8bd'; c.fillRect(36, 16, 56, 84);   // наличник
+    c.fillStyle = '#33405a'; c.fillRect(40, 20, 48, 76);   // стекло
+    c.fillStyle = 'rgba(160,190,230,0.25)';                // блик
+    c.fillRect(42, 22, 18, 30);
+    c.strokeStyle = '#cdc8bd'; c.lineWidth = 3;
+    c.beginPath(); c.moveTo(64, 20); c.lineTo(64, 96);
+    c.moveTo(40, 58); c.lineTo(88, 58); c.stroke();        // переплёт
+    c.fillStyle = 'rgba(0,0,0,0.10)'; c.fillRect(34, 100, 60, 5); // тень под окном
+  });
+  // глухая стена (гаражи, промздания)
+  TEX.wall = makeTex(128, 128, function (c, w, h) {
+    c.fillStyle = '#e4e2dc'; c.fillRect(0, 0, w, h);
+    for (var i = 0; i < 500; i++) {
+      c.fillStyle = 'rgba(50,45,40,' + (Math.random() * 0.07).toFixed(3) + ')';
+      c.fillRect(Math.random() * w, Math.random() * h, 3, 3);
+    }
+    c.fillStyle = 'rgba(0,0,0,0.05)';
+    for (var y = 0; y < h; y += 32) c.fillRect(0, y, w, 2); // швы панелей
+  });
+  // черепица: тайл 4×2 м
+  TEX.tiles = makeTex(128, 64, function (c, w, h) {
+    c.fillStyle = '#c8c0b8'; c.fillRect(0, 0, w, h);
+    for (var row = 0; row < 4; row++) {
+      for (var i = -1; i < 9; i++) {
+        var s = 165 + Math.random() * 70 | 0;
+        c.fillStyle = 'rgb(' + s + ',' + (s - 8) + ',' + (s - 14) + ')';
+        c.fillRect(i * 16 + (row % 2 ? 8 : 0), row * 16, 15, 15);
+      }
+    }
+  });
+  // мягкий шум: трава/песок/асфальт (цвет задаёт материал)
+  TEX.noise = makeTex(128, 128, function (c, w, h) {
+    c.fillStyle = '#e0e0e0'; c.fillRect(0, 0, w, h);
+    for (var i = 0; i < 1600; i++) {
+      var v = Math.random();
+      c.fillStyle = v < 0.5 ? 'rgba(0,0,0,' + (v * 0.14).toFixed(3) + ')'
+                            : 'rgba(255,255,255,' + ((v - 0.5) * 0.2).toFixed(3) + ')';
+      c.fillRect(Math.random() * w, Math.random() * h, 2 + Math.random() * 3, 2 + Math.random() * 3);
+    }
+  });
+}
 
 function addFlatPoly(sink, pts, y) {
   var contour = [];
@@ -165,7 +229,8 @@ function addFlatPoly(sink, pts, y) {
     // следим, чтобы треугольник смотрел вверх (иначе шейдер перевернёт нормаль)
     var crossY = (b[1] - a[1]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[1] - a[1]);
     if (crossY < 0) { var sw = b; b = c; c = sw; }
-    sink.tri(a[0], y, a[1], b[0], y, b[1], c[0], y, c[1], 0, 1, 0);
+    sink.tri(a[0], y, a[1], b[0], y, b[1], c[0], y, c[1], 0, 1, 0,
+             a[0] / 8, a[1] / 8, b[0] / 8, b[1] / 8, c[0] / 8, c[1] / 8);
   }
 }
 
@@ -180,20 +245,26 @@ function addRibbon(sink, pts, w, y) {
     var ex = dx * hw, ez = dz * hw;
     var pax = ax - ex, paz = az - ez, pbx = bx + ex, pbz = bz + ez;
     var nx = -dz * hw, nz = dx * hw;
-    sink.tri(pax + nx, y, paz + nz, pbx + nx, y, pbz + nz, pbx - nx, y, pbz - nz, 0, 1, 0);
-    sink.tri(pax + nx, y, paz + nz, pbx - nx, y, pbz - nz, pax - nx, y, paz - nz, 0, 1, 0);
+    var u1 = (len + w) / 6;
+    sink.tri(pax + nx, y, paz + nz, pbx + nx, y, pbz + nz, pbx - nx, y, pbz - nz, 0, 1, 0,
+             0, 0, u1, 0, u1, 1);
+    sink.tri(pax + nx, y, paz + nz, pbx - nx, y, pbz - nz, pax - nx, y, paz - nz, 0, 1, 0,
+             0, 0, u1, 1, 0, 1);
   }
 }
 
 function addPrism(sink, pts, h, roofSink, pitched) {
+  var acc = 0; // развёртка фасада: 1 ячейка текстуры = пролёт 4 м × этаж 3 м
   for (var i = 0; i < pts.length; i++) {
     var j = (i + 1) % pts.length;
     var ax = pts[i][0], az = pts[i][1], bx = pts[j][0], bz = pts[j][1];
     var dx = bx - ax, dz = bz - az, len = Math.sqrt(dx * dx + dz * dz);
     if (len < 0.01) continue;
     var nx = dz / len, nz = -dx / len;
-    sink.tri(ax, 0, az, bx, 0, bz, bx, h, bz, nx, 0, nz);
-    sink.tri(ax, 0, az, bx, h, bz, ax, h, az, nx, 0, nz);
+    var u0 = acc / 4, u1 = (acc + len) / 4, v1 = h / 3;
+    acc += len;
+    sink.tri(ax, 0, az, bx, 0, bz, bx, h, bz, nx, 0, nz, u0, 0, u1, 0, u1, v1);
+    sink.tri(ax, 0, az, bx, h, bz, ax, h, az, nx, 0, nz, u0, 0, u1, v1, u0, v1);
   }
   if (!pitched) {
     addFlatPoly(roofSink || sink, pts, h);
@@ -215,14 +286,15 @@ function addPrism(sink, pts, h, roofSink, pitched) {
     var mx = (ax2 + bx2) / 2 - cx, mz = (az2 + bz2) / 2 - cz;
     if (nx2 * mx + nz2 * mz < 0) { nx2 = -nx2; ny2 = -ny2; nz2 = -nz2; }
     var nl = Math.sqrt(nx2 * nx2 + ny2 * ny2 + nz2 * nz2) || 1;
-    roofSink.tri(ax2, h, az2, bx2, h, bz2, cx, apexY, cz, nx2 / nl, ny2 / nl, nz2 / nl);
+    roofSink.tri(ax2, h, az2, bx2, h, bz2, cx, apexY, cz, nx2 / nl, ny2 / nl, nz2 / nl,
+                 ax2 / 4, az2 / 2, bx2 / 4, bz2 / 2, cx / 4, cz / 2);
   }
 }
 
 // материалы, на которые влияют сезоны/погода — храним ссылки
 var mats = {};
 function flatMat(color) {
-  return new THREE.MeshLambertMaterial({ color: color, side: THREE.DoubleSide });
+  return new THREE.MeshLambertMaterial({ color: color, side: THREE.DoubleSide, map: TEX.noise });
 }
 
 var BUILDING_STYLE = {
@@ -240,7 +312,10 @@ scene.add(cityGroup);
 
 function buildGround() {
   mats.ground = flatMat(0x6f8f5a);
-  var ground = new THREE.Mesh(new THREE.PlaneGeometry(16000, 16000), mats.ground);
+  var gg = new THREE.PlaneGeometry(16000, 16000);
+  var guv = gg.attributes.uv;
+  for (var i = 0; i < guv.count * 2; i++) guv.array[i] *= 2000; // тайл 8×8 м
+  var ground = new THREE.Mesh(gg, mats.ground);
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.3;
   ground.receiveShadow = true;
@@ -297,6 +372,7 @@ function buildBuildings() {
   var sinks = {}, winPos = [[], [], []];
   for (var k in BUILDING_STYLE) sinks[k] = new GeomSink(true);
   var roofP = new GeomSink(true), roofF = new GeomSink(true);
+  var doors = new GeomSink(false);
   var rng = mulberry32(7);
   for (var i = 0; i < D.buildings.length; i++) {
     var b = D.buildings[i];
@@ -309,6 +385,27 @@ function buildBuildings() {
     sink.tint = 0.8 + rng() * 0.35;
     roof.tint = 0.78 + rng() * 0.4;
     addPrism(sink, b.p, b.h, roof, pitched);
+    // входная дверь на случайной достаточно длинной стене
+    if (b.t !== 'garage' && b.h >= 4) {
+      var de = Math.floor(rng() * b.p.length);
+      for (var dtry = 0; dtry < b.p.length; dtry++, de = (de + 1) % b.p.length) {
+        var df = (de + 1) % b.p.length;
+        var dax = b.p[de][0], daz = b.p[de][1], dbx = b.p[df][0], dbz = b.p[df][1];
+        var ddx = dbx - dax, ddz = dbz - daz;
+        var dlen = Math.sqrt(ddx * ddx + ddz * ddz);
+        if (dlen < 3) continue;
+        ddx /= dlen; ddz /= dlen;
+        var dnx = ddz, dnz = -ddx;
+        var mx = (dax + dbx) / 2, mz = (daz + dbz) / 2;
+        if (pointInPoly(mx + dnx * 1.5, mz + dnz * 1.5, b.p)) { dnx = -dnx; dnz = -dnz; }
+        var ox = mx + dnx * 0.06, oz = mz + dnz * 0.06; // чуть наружу от стены
+        var x1 = ox - ddx * 0.6, z1 = oz - ddz * 0.6;
+        var x2 = ox + ddx * 0.6, z2 = oz + ddz * 0.6;
+        doors.tri(x1, 0, z1, x2, 0, z2, x2, 2.2, z2, dnx, 0, dnz);
+        doors.tri(x1, 0, z1, x2, 2.2, z2, x1, 2.2, z1, dnx, 0, dnz);
+        break;
+      }
+    }
     // шпили на церквях
     if (b.t === 'church' && b.h >= 9) {
       var scx = 0, scz = 0;
@@ -341,17 +438,22 @@ function buildBuildings() {
   mats.bld = {};
   for (var k2 in sinks) {
     if (!sinks[k2].pos.length) continue;
+    // фасады с окнами; глухие стены у гаражей и промзданий
+    var ftex = (k2 === 'garage' || k2 === 'ind') ? TEX.wall : TEX.facade;
     var m = new THREE.MeshPhongMaterial({ color: BUILDING_STYLE[k2], side: THREE.DoubleSide,
-      shininess: 4, vertexColors: true });
+      shininess: 4, vertexColors: true, map: ftex });
     mats.bld[k2] = m;
     var bm = new THREE.Mesh(sinks[k2].build(), m);
     bm.castShadow = true; bm.receiveShadow = true;
     cityGroup.add(bm);
   }
+  var doorMesh = new THREE.Mesh(doors.build(),
+    new THREE.MeshPhongMaterial({ color: 0x4a3526, side: THREE.DoubleSide, shininess: 8 }));
+  cityGroup.add(doorMesh);
   mats.roofP = new THREE.MeshPhongMaterial({ color: 0x96503e, side: THREE.DoubleSide,
-    shininess: 2, vertexColors: true });
+    shininess: 2, vertexColors: true, map: TEX.tiles });
   mats.roofF = new THREE.MeshPhongMaterial({ color: 0x84888e, side: THREE.DoubleSide,
-    shininess: 2, vertexColors: true });
+    shininess: 2, vertexColors: true, map: TEX.noise });
   var rpm = new THREE.Mesh(roofP.build(), mats.roofP);
   var rfm = new THREE.Mesh(roofF.build(), mats.roofF);
   rpm.castShadow = rfm.castShadow = rpm.receiveShadow = rfm.receiveShadow = true;
@@ -1795,7 +1897,7 @@ function loop() {
 var loadbar = document.getElementById('loadbar');
 var loadmsg = document.getElementById('loadmsg');
 var stages = [
-  ['Рельеф и залив…', function () { buildGround(); buildWaterAndLand(); }],
+  ['Рельеф и залив…', function () { buildTextures(); buildGround(); buildWaterAndLand(); }],
   ['Улицы и дороги…', function () { buildRoads(); }],
   ['Здания (' + D.buildings.length + ')…', function () { buildBuildings(); }],
   ['Деревья и парки…', function () { buildTrees(); }],
