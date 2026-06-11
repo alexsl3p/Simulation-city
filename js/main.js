@@ -231,7 +231,8 @@ var BUILDING_STYLE = {
 };
 
 var nightGlowMats = [];   // материалы, чья прозрачность зависит от темноты
-var windowPts, lampPts, starPts;
+var windowMats = [];      // окна домов: 3 группы «расписания сна»
+var lampPts, starPts;
 var treeCrownMat, treeTrunkMat;
 var waterMats = [];
 var cityGroup = new THREE.Group();
@@ -293,7 +294,7 @@ function buildRoads() {
 }
 
 function buildBuildings() {
-  var sinks = {}, winPos = [];
+  var sinks = {}, winPos = [[], [], []];
   for (var k in BUILDING_STYLE) sinks[k] = new GeomSink(true);
   var roofP = new GeomSink(true), roofF = new GeomSink(true);
   var rng = mulberry32(7);
@@ -308,7 +309,7 @@ function buildBuildings() {
     sink.tint = 0.8 + rng() * 0.35;
     roof.tint = 0.78 + rng() * 0.4;
     addPrism(sink, b.p, b.h, roof, pitched);
-    // точки «окон», светящиеся ночью
+    // точки «окон», светящиеся ночью; группа задаёт «расписание сна»
     if (b.h >= 4 && rng() < 0.75) {
       var nWin = 1 + Math.floor(b.h / 7);
       for (var w = 0; w < nWin; w++) {
@@ -317,7 +318,8 @@ function buildBuildings() {
         var t = rng();
         var wx = lerp(b.p[e0][0], b.p[e1][0], t);
         var wz = lerp(b.p[e0][1], b.p[e1][1], t);
-        winPos.push(wx, 2 + rng() * Math.max(1, b.h - 3), wz);
+        var grp = rng() < 0.5 ? 0 : (rng() < 0.6 ? 1 : 2);
+        winPos[grp].push(wx, 2 + rng() * Math.max(1, b.h - 3), wz);
       }
     }
   }
@@ -339,13 +341,27 @@ function buildBuildings() {
   var rfm = new THREE.Mesh(roofF.build(), mats.roofF);
   rpm.castShadow = rfm.castShadow = rpm.receiveShadow = rfm.receiveShadow = true;
   cityGroup.add(rpm); cityGroup.add(rfm);
-  var wg = new THREE.BufferGeometry();
-  wg.setAttribute('position', new THREE.Float32BufferAttribute(winPos, 3));
-  var wm = new THREE.PointsMaterial({ color: 0xffcf7d, size: 2.4, sizeAttenuation: true,
-    transparent: true, opacity: 0, depthWrite: false });
-  nightGlowMats.push(wm);
-  windowPts = new THREE.Points(wg, wm);
-  cityGroup.add(windowPts);
+  for (var wgi = 0; wgi < 3; wgi++) {
+    var wg = new THREE.BufferGeometry();
+    wg.setAttribute('position', new THREE.Float32BufferAttribute(winPos[wgi], 3));
+    var wm = new THREE.PointsMaterial({ color: 0xffcf7d, size: 2.4, sizeAttenuation: true,
+      transparent: true, opacity: 0, depthWrite: false });
+    windowMats.push(wm);
+    cityGroup.add(new THREE.Points(wg, wm));
+  }
+}
+
+// Доля горящих окон по часу: 0 — «ранние», 1 — обычные, 2 — «совы»
+function windowHourFactor(h, g) {
+  if (g === 0) {
+    if (h >= 17 && h < 22.5) return 1;
+    return (h >= 22.5 || h < 6) ? 0.07 : 0.3;
+  }
+  if (g === 1) {
+    if (h >= 16 || h < 0.5) return 1;
+    return h < 2 ? 0.3 : 0.12;
+  }
+  return (h >= 2.5 && h < 4.5) ? 0.5 : 0.9;
 }
 
 function buildTrees() {
@@ -1271,7 +1287,7 @@ var SKY = {
   night: new THREE.Color(0x070d1d), dawn: new THREE.Color(0xd98a4e)
 };
 var _sky = new THREE.Color(), _tmp = new THREE.Color();
-function updateSky() {
+function updateSky(clock) {
   var sp = sunPosition(sim.ms, LAT, LON);
   var alt = sp.altitude;
   var dayF = smoothstep(-0.10, 0.12, alt);
@@ -1304,6 +1320,10 @@ function updateSky() {
   var darkness = 1 - dayF;
   for (var i = 0; i < nightGlowMats.length; i++) {
     nightGlowMats[i].opacity = darkness * (nightGlowMats[i] === starPts.material && cloudy ? 0.15 : 0.95);
+  }
+  // окна гаснут по «расписанию сна» жителей
+  for (var wi = 0; wi < windowMats.length; wi++) {
+    windowMats[wi].opacity = darkness * 0.95 * windowHourFactor(clock.hour, wi);
   }
   cloudOpacityTarget = overcast ? 0.85 : (sim.weather === 'clear' ? 0.12 : 0.4);
 
@@ -1647,7 +1667,7 @@ function loop() {
   var clock = localClock(sim.ms);
   updateWeather(clock);
   applySeasonPalette();
-  var dayF = updateSky();
+  var dayF = updateSky(clock);
   updateClouds(dt);
   updatePrecip(dt, cam.target);
   if (sim.speed > 0) {
@@ -1701,7 +1721,8 @@ function runStage() {
   }, 30);
 }
 window.PARNU_DEBUG = { scene: scene, renderer: renderer, camera: camera, mats: mats, cam: cam,
-                       peds: peds, cars: cars, get pois() { return pois; } };
+                       peds: peds, cars: cars, windowMats: windowMats,
+                       get pois() { return pois; } };
 runStage();
 
 })();
