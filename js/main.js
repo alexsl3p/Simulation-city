@@ -538,6 +538,57 @@ function preparePois() {
   }
 }
 
+// Подписи реальных заведений (названия из OSM), видны при приближении камеры.
+var poiLabels = [], labelsEnabled = true;
+var LABEL_COLORS = { night: '#ff6090', food: '#ffb84d', hotel: '#6db3ff',
+                     culture: '#b58cff', shop: '#6fd66f' };
+function buildPoiLabels() {
+  for (var i = 0; i < pois.length && poiLabels.length < 240; i++) {
+    var p = pois[i];
+    var col = LABEL_COLORS[p.t];
+    if (!col || !p.n || /^[a-z_]+$/.test(p.n)) continue; // пропускаем безымянные
+    var name = p.n.length > 26 ? p.n.slice(0, 25) + '…' : p.n;
+    var cvs = document.createElement('canvas');
+    var ctx = cvs.getContext('2d');
+    ctx.font = '600 22px "Segoe UI", Arial, sans-serif';
+    var tw = Math.ceil(ctx.measureText(name).width);
+    cvs.width = tw + 44; cvs.height = 40;
+    ctx.font = '600 22px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = 'rgba(8,14,30,0.78)';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(0, 0, cvs.width, cvs.height, 10);
+    else ctx.rect(0, 0, cvs.width, cvs.height);
+    ctx.fill();
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(20, 20, 7, 0, 6.3); ctx.fill();
+    ctx.fillStyle = '#e8f0ff';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(name, 36, 21);
+    var tex = new THREE.CanvasTexture(cvs);
+    var m = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+    var s = new THREE.Sprite(m);
+    var w = cvs.width / 5.5;
+    s.scale.set(w, cvs.height / 5.5, 1);
+    s.position.set(p.x, 17, p.z);
+    s.renderOrder = 10;
+    s.visible = false;
+    scene.add(s);
+    poiLabels.push(s);
+  }
+}
+var labelAccum = 1;
+function updatePoiLabels(dt) {
+  labelAccum += dt;
+  if (labelAccum < 0.3) return;
+  labelAccum = 0;
+  var show = labelsEnabled && cam.dist < 1400;
+  var r2 = 800 * 800;
+  for (var i = 0; i < poiLabels.length; i++) {
+    var s = poiLabels[i];
+    s.visible = show && dist2(s.position.x, s.position.z, cam.target.x, cam.target.z) < r2;
+  }
+}
+
 // Веса категорий целей в зависимости от часа/дня недели/сезона/погоды.
 function poiWeights(hour, dow, season, weather) {
   var w = { night: 0.1, food: 0.4, shop: 0.2, school: 0.02, culture: 0.15, hotel: 0.25,
@@ -1082,6 +1133,9 @@ function updateUI(dt) {
   document.getElementById('weather').addEventListener('change', function (e) {
     sim.weatherMode = e.target.value;
   });
+  document.getElementById('labels').addEventListener('change', function (e) {
+    labelsEnabled = e.target.checked;
+  });
   var dp = document.getElementById('datepick');
   function msToLocalInput(ms) {
     var d = new Date(ms - new Date(ms).getTimezoneOffset() * 60000);
@@ -1119,6 +1173,7 @@ function loop() {
   }
   updateKeysCamera(dt);
   applyCamera();
+  updatePoiLabels(dt);
   updateUI(dt);
   renderer.render(scene, camera);
 }
@@ -1136,7 +1191,7 @@ var stages = [
     carGraph = buildGraph({ maj: 1, res: 1, srv: 1 });
     walkGraph = buildGraph({ ped: 1, res: 1, srv: 1, maj: 1 });
   }],
-  ['Жители и транспорт…', function () { preparePois(); buildAgents(); }]
+  ['Жители и транспорт…', function () { preparePois(); buildPoiLabels(); buildAgents(); }]
 ];
 var stageIdx = 0;
 function runStage() {
