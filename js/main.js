@@ -1042,7 +1042,7 @@ function spawnPed(rng, clock) {
     node: startNode, next: -1, t: 0, prev: -1,
     target: target, mode: 'walk', loiterUntil: 0,
     lx: 0, lz: 0, speed: 1.2 + rng() * 0.6, x: 0, z: 0, ang: rng() * 6.28,
-    walked: 0
+    walked: 0, sc: 0.85 + rng() * 0.27
   };
 }
 
@@ -1212,9 +1212,13 @@ function updatePeds(simDt, clock) {
   }
   for (var k = 0; k < PED_MAX; k++) {
     if (k < peds.length) {
-      dummy.position.set(peds[k].x, 0.12, peds[k].z);
-      dummy.rotation.set(0, -peds[k].ang + Math.PI / 2, 0);
-      dummy.scale.set(1, 1, 1);
+      var pk = peds[k];
+      // лёгкое покачивание при ходьбе, рост у каждого свой
+      var bob = pk.mode === 'walk' ? Math.abs(Math.sin(pk.walked * 3.2)) * 0.07 : 0;
+      dummy.position.set(pk.x, 0.12 + bob, pk.z);
+      dummy.rotation.set(0, -pk.ang + Math.PI / 2, 0);
+      var psc = pk.sc || 1;
+      dummy.scale.set(psc, psc, psc);
     } else {
       dummy.position.set(0, -100, 0); dummy.scale.set(0.001, 0.001, 0.001);
     }
