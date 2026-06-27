@@ -41,6 +41,10 @@
     home.addEventListener('click', () => { showHome(); closeNav(); });
     sidebar.appendChild(home);
 
+    const gloss = el('button', 'nav-gloss', '📖 Словарь терминов');
+    gloss.addEventListener('click', () => { showGlossary(); closeNav(); });
+    sidebar.appendChild(gloss);
+
     COURSE.modules.forEach((m, mi) => {
       const modBox = el('div', 'nav-module');
       const head = el('div', 'nav-modhead');
@@ -138,6 +142,34 @@
       c.addEventListener('click', () => openLesson(+c.dataset.mi, 0)));
   }
 
+  /* ── словарь терминов с поиском ────────────────────────────────────── */
+  function showGlossary() {
+    killSim(); current = null; highlightActive(); main.scrollTop = 0;
+    const terms = (typeof GLOSSARY !== 'undefined') ? GLOSSARY : [];
+    main.innerHTML = `<div class="gloss">
+      <h1 class="gloss-h">📖 Словарь терминов</h1>
+      <p class="gloss-sub">Короткие объяснения «человеческим языком». Застряли на слове — ищите здесь.</p>
+      <input id="gloss-search" class="gloss-search" type="text" placeholder="Поиск термина… (например: энтропия, КПД, фотон)">
+      <div class="gloss-list" id="gloss-list">
+        ${terms.map(g => `<div class="gloss-item" data-k="${(g.t + ' ' + g.d).toLowerCase()}">
+          <div class="gloss-term">${g.t}</div><div class="gloss-def">${g.d}</div></div>`).join('')}
+      </div>
+      <div class="gloss-none" id="gloss-none" style="display:none">Ничего не нашлось — попробуйте другое слово.</div>
+    </div>`;
+    const inp = document.getElementById('gloss-search');
+    const items = [...document.querySelectorAll('.gloss-item')];
+    inp.addEventListener('input', () => {
+      const q = inp.value.trim().toLowerCase();
+      let shown = 0;
+      items.forEach(it => {
+        const ok = !q || it.dataset.k.includes(q);
+        it.style.display = ok ? '' : 'none'; if (ok) shown++;
+      });
+      document.getElementById('gloss-none').style.display = shown ? 'none' : '';
+    });
+    inp.focus();
+  }
+
   function firstUndone() {
     for (let i = 0; i < flat.length; i++) if (!progress.done[flat[i].l.id]) return i;
     return 0;
@@ -160,6 +192,9 @@
           <h1 class="lesson-title">${l.title}</h1>
           <div class="lesson-meta">⏱ ~${l.min} мин чтения</div>
         </div>
+        ${(l.tldr || (typeof TLDR !== 'undefined' && TLDR[l.id])) ?
+          `<div class="lesson-tldr"><div class="tldr-head">⚡ Главное простыми словами</div>
+           <div>${l.tldr || TLDR[l.id]}</div></div>` : ''}
         <div class="lesson-body">${blocksHtml}</div>
         <div id="quiz"></div>
         <div class="lesson-nav">

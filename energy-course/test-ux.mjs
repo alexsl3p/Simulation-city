@@ -82,6 +82,23 @@ await page.waitForTimeout(250);
 const navOpen = await page.evaluate(() => document.body.classList.contains('nav-open'));
 log('Мобайл: меню открывается', navOpen);
 
+// 11. TL;DR present on a lesson
+await page.setViewportSize({ width: 1200, height: 800 });
+await page.locator('.nav-lesson', { hasText: 'Что такое энергия' }).click();
+await page.waitForTimeout(250);
+const tldr = await page.locator('.lesson-tldr').count();
+log('Врезка «Главное простыми словами» есть', tldr === 1);
+
+// 12. glossary opens and search filters
+await page.locator('.nav-gloss').click();
+await page.waitForTimeout(200);
+const gitems = await page.locator('.gloss-item').count();
+log('Словарь открыт со списком терминов', gitems > 20, `(${gitems})`);
+await page.locator('#gloss-search').fill('энтропия');
+await page.waitForTimeout(150);
+const visible = await page.locator('.gloss-item:visible').count();
+log('Поиск по словарю фильтрует', visible >= 1 && visible < gitems, `(видно ${visible})`);
+
 console.log('\n=== Ошибки консоли/страницы:', errors.length, '===');
 errors.forEach(e => console.log('  ' + e));
 
