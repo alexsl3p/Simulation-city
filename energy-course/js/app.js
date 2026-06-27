@@ -285,6 +285,16 @@
     if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e;
   }
 
+  /* ── навигация стрелками ←/→ между уроками ─────────────────────────── */
+  document.addEventListener('keydown', (e) => {
+    if (!current) return;
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    const idx = flat.findIndex(f => f.mi === current.mi && f.li === current.li);
+    if (e.key === 'ArrowRight') { e.preventDefault(); if (idx < flat.length - 1) openFlat(idx + 1); else showFinish(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); idx > 0 ? openFlat(idx - 1) : showHome(); }
+  });
+
   /* ── старт ─────────────────────────────────────────────────────────── */
   buildSidebar();
   showHome();
