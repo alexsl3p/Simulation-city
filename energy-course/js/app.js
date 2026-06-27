@@ -45,6 +45,10 @@
     gloss.addEventListener('click', () => { showGlossary(); closeNav(); });
     sidebar.appendChild(gloss);
 
+    const exam = el('button', 'nav-gloss nav-exam', '🎯 Экзамен');
+    exam.addEventListener('click', () => { showExamHome(); closeNav(); });
+    sidebar.appendChild(exam);
+
     COURSE.modules.forEach((m, mi) => {
       const modBox = el('div', 'nav-module');
       const head = el('div', 'nav-modhead');
@@ -105,6 +109,7 @@
             <button class="btn-primary" id="startBtn">
               ${lessonsDone() ? 'Продолжить обучение' : 'Начать с нуля'}
             </button>
+            <button class="btn-ghost" id="examHomeBtn">🎯 Сдать экзамен</button>
             <div class="hero-prog">
               <div class="hero-prog-bar"><div style="width:${pct()}%"></div></div>
               <span>${pct()}% пройдено</span>
@@ -138,6 +143,7 @@
         </div>
       </div>`;
     document.getElementById('startBtn').addEventListener('click', () => openFlat(continueTarget));
+    document.getElementById('examHomeBtn').addEventListener('click', showExamHome);
     main.querySelectorAll('.modcard').forEach(c =>
       c.addEventListener('click', () => openLesson(+c.dataset.mi, 0)));
   }
@@ -168,6 +174,126 @@
       document.getElementById('gloss-none').style.display = shown ? 'none' : '';
     });
     inp.focus();
+  }
+
+  /* ── экзамен / тесты ──────────────────────────────────────────────── */
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function moduleQuestions(m) {
+    const out = []; m.lessons.forEach(l => (l.quiz || []).forEach(q => out.push(q)));
+    return out;
+  }
+  function allQuestions() {
+    const out = []; COURSE.modules.forEach(m => out.push(...moduleQuestions(m)));
+    return out;
+  }
+  function countQ(m) { return moduleQuestions(m).length; }
+
+  function showExamHome() {
+    killSim(); current = null; highlightActive(); main.scrollTop = 0;
+    const best = progress.exam || {};
+    const totalQ = allQuestions().length;
+    main.innerHTML = `<div class="exam">
+      <h1 class="gloss-h">🎯 Экзамен</h1>
+      <p class="gloss-sub">Проверьте, что усвоили. Ответьте на вопросы, получите оценку и разбор ошибок. Лучший результат сохраняется.</p>
+      <div class="exam-grid">
+        <button class="exam-card exam-final" data-scope="final">
+          <div class="exam-card-lvl">Итоговый</div>
+          <div class="exam-card-t">Финальный экзамен</div>
+          <div class="exam-card-d">20 случайных вопросов со всего курса (банк из ${totalQ})</div>
+          <div class="exam-best">${best.final != null ? ('🏅 Лучший результат: ' + best.final + '%') : 'ещё не сдавался'}</div>
+        </button>
+        ${COURSE.modules.map(m => `<button class="exam-card" data-scope="${m.id}">
+          <div class="exam-card-lvl">${m.level}</div>
+          <div class="exam-card-t">${m.title}</div>
+          <div class="exam-card-d">${countQ(m)} вопросов по модулю</div>
+          <div class="exam-best">${best[m.id] != null ? ('🏅 Лучший: ' + best[m.id] + '%') : 'не сдавался'}</div>
+        </button>`).join('')}
+      </div>
+    </div>`;
+    main.querySelectorAll('.exam-card').forEach(c => c.addEventListener('click', () => startExamByScope(c.dataset.scope)));
+  }
+
+  function startExamByScope(scope) {
+    if (scope === 'final') startExam(shuffle(allQuestions()).slice(0, 20), 'Финальный экзамен', 'final');
+    else { const m = COURSE.modules.find(x => x.id === scope); if (m) startExam(shuffle(moduleQuestions(m)), 'Экзамен: ' + m.title, scope); }
+  }
+
+  function startExam(pool, title, key) {
+    killSim(); current = null; highlightActive(); main.scrollTop = 0;
+    const answers = new Array(pool.length).fill(null);
+    main.innerHTML = `<div class="exam-run">
+      <div class="lesson-top">
+        <div class="lesson-crumbs">🎯 Экзамен</div>
+        <h1 class="lesson-title">${title}</h1>
+        <div class="lesson-meta">${pool.length} вопросов · выберите ответ на каждый и нажмите «Завершить тест»</div>
+      </div>
+      <div class="exam-qs">
+        ${pool.map((q, qi) => `<div class="exam-q" data-qi="${qi}">
+          <div class="quiz-text">${qi + 1}. ${q.q}</div>
+          <div class="quiz-opts">${q.a.map((o, oi) => `<button class="quiz-opt exam-opt" data-qi="${qi}" data-oi="${oi}">${o}</button>`).join('')}</div>
+        </div>`).join('')}
+      </div>
+      <div class="lesson-nav">
+        <button class="btn-ghost" id="examBack">← К выбору</button>
+        <span id="examCount" class="exam-count">Отвечено: 0 / ${pool.length}</span>
+        <button class="btn-primary" id="examFinish">Завершить тест</button>
+      </div>
+      <div id="examResult"></div>
+    </div>`;
+
+    main.querySelectorAll('.exam-opt').forEach(b => b.addEventListener('click', () => {
+      const qi = +b.dataset.qi, oi = +b.dataset.oi;
+      const box = main.querySelector(`.exam-q[data-qi="${qi}"]`);
+      if (box.classList.contains('locked')) return;
+      answers[qi] = oi;
+      box.querySelectorAll('.exam-opt').forEach(x => x.classList.remove('chosen'));
+      b.classList.add('chosen');
+      const answered = answers.filter(a => a != null).length;
+      document.getElementById('examCount').textContent = `Отвечено: ${answered} / ${pool.length}`;
+    }));
+    document.getElementById('examBack').addEventListener('click', showExamHome);
+    document.getElementById('examFinish').addEventListener('click', () => finishExam(pool, answers, key));
+  }
+
+  function finishExam(pool, answers, key) {
+    let correct = 0;
+    pool.forEach((q, qi) => {
+      const box = main.querySelector(`.exam-q[data-qi="${qi}"]`);
+      box.classList.add('locked');
+      box.querySelectorAll('.exam-opt').forEach((b, bi) => {
+        b.disabled = true;
+        if (bi === q.correct) b.classList.add('correct');
+        else if (bi === answers[qi]) b.classList.add('wrong');
+      });
+      const ok = answers[qi] === q.correct;
+      if (ok) correct++;
+      const why = document.createElement('div');
+      why.className = 'quiz-why show ' + (ok ? 'ok' : 'no');
+      why.innerHTML = `<b>${ok ? '✓ Верно.' : (answers[qi] == null ? '— Без ответа.' : '✗ Неверно.')}</b> ${q.why}`;
+      box.appendChild(why);
+    });
+    const pct = Math.round(correct / pool.length * 100);
+    progress.exam = progress.exam || {};
+    const isBest = progress.exam[key] == null || pct > progress.exam[key];
+    if (isBest) progress.exam[key] = pct;
+    save();
+    const grade = pct >= 90 ? 'Отлично! 🏆' : pct >= 70 ? 'Хорошо 👍' : pct >= 50 ? 'Неплохо — но стоит повторить' : 'Стоит вернуться к урокам';
+    const res = document.getElementById('examResult');
+    res.innerHTML = `<div class="exam-score-box">
+      <div class="exam-score-n">${correct} / ${pool.length} · ${pct}%</div>
+      <div class="exam-grade">${grade}${isBest ? ' · новый рекорд!' : ''}</div>
+      <div class="exam-score-actions">
+        <button class="btn-primary" id="examRetry">Пройти заново</button>
+        <button class="btn-ghost" id="examHome2">К выбору экзамена</button>
+      </div>
+    </div>`;
+    document.getElementById('examRetry').addEventListener('click', () => startExamByScope(key));
+    document.getElementById('examHome2').addEventListener('click', showExamHome);
+    res.scrollIntoView({ behavior: 'smooth' });
   }
 
   function firstUndone() {

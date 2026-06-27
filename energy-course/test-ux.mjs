@@ -90,7 +90,7 @@ const tldr = await page.locator('.lesson-tldr').count();
 log('Врезка «Главное простыми словами» есть', tldr === 1);
 
 // 12. glossary opens and search filters
-await page.locator('.nav-gloss').click();
+await page.locator('.nav-gloss', { hasText: 'Словарь' }).click();
 await page.waitForTimeout(200);
 const gitems = await page.locator('.gloss-item').count();
 log('Словарь открыт со списком терминов', gitems > 20, `(${gitems})`);
@@ -98,6 +98,28 @@ await page.locator('#gloss-search').fill('энтропия');
 await page.waitForTimeout(150);
 const visible = await page.locator('.gloss-item:visible').count();
 log('Поиск по словарю фильтрует', visible >= 1 && visible < gitems, `(видно ${visible})`);
+
+// 13. exam: open, answer all, finish, see score
+await page.locator('.nav-exam').click();
+await page.waitForTimeout(200);
+const examCards = await page.locator('.exam-card').count();
+log('Экзамен: список тестов открыт', examCards >= 11, `(${examCards})`);
+// pick the first module exam (a smaller pool)
+await page.locator('.exam-card', { hasText: 'Энергия: интуиция' }).click();
+await page.waitForTimeout(250);
+const eq = await page.locator('.exam-q').count();
+log('Экзамен по модулю: вопросы отрисованы', eq > 0, `(${eq})`);
+// answer every question by clicking the first option
+const qCount = await page.locator('.exam-q').count();
+for (let i = 0; i < qCount; i++) {
+  await page.locator(`.exam-q[data-qi="${i}"] .exam-opt`).first().click();
+}
+await page.locator('#examFinish').click();
+await page.waitForTimeout(250);
+const scoreShown = await page.locator('.exam-score-n').count();
+log('Экзамен: показан итоговый балл', scoreShown === 1);
+const correctMarks = await page.locator('.exam-opt.correct').count();
+log('Экзамен: правильные ответы подсвечены', correctMarks >= qCount);
 
 console.log('\n=== Ошибки консоли/страницы:', errors.length, '===');
 errors.forEach(e => console.log('  ' + e));
