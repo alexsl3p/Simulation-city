@@ -207,6 +207,19 @@ body {
 .try-head { font-weight: 700; color: var(--accent); font-size: 13px; margin-bottom: 6px; }
 .b-try b { color: var(--accent); }
 
+/* схема устройства */
+.b-device { margin: 22px 0; padding: 16px 18px; background: linear-gradient(180deg, #122140, #0e1a33);
+  border: 1px solid var(--line); border-radius: var(--radius); border-left: 4px solid var(--accent); }
+.dev-title { font-weight: 700; font-size: 16px; color: var(--accent); margin-bottom: 12px; }
+.dev-parts-h, .dev-steps-h { font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--accent2); margin: 10px 0 8px; font-weight: 700; }
+.dev-parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.dev-part { background: #0c1530; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; font-size: 14px; }
+.dev-part b { color: #fff; display: block; margin-bottom: 2px; }
+.dev-part span { color: var(--muted); font-size: 13px; }
+.dev-steps { margin: 4px 0 0; padding-left: 22px; }
+.dev-steps li { margin-bottom: 6px; font-size: 15px; }
+.dev-steps b { color: var(--accent); }
+
 /* таблицы спектра */
 table.spec { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; }
 table.spec th, table.spec td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; }
@@ -256,6 +269,56 @@ table.spec tr:nth-child(even) td { background: #101a33; }
 .finish p { color: #c4d2f0; font-size: 17px; }
 .finish-tip { color: var(--muted) !important; font-size: 15px !important; }
 .finish .btn-primary { margin-top: 22px; }
+
+/* ── ИИ-преподаватель ──────────────────────────────────────────────── */
+.tutor-fab {
+  position: fixed; right: 18px; bottom: 18px; z-index: 40;
+  background: linear-gradient(90deg, var(--accent2), var(--accent)); color: #06122e;
+  border: none; border-radius: 999px; padding: 12px 18px; font-size: 14px; font-weight: 700;
+  cursor: pointer; box-shadow: 0 8px 24px -6px rgba(0,0,0,.6);
+}
+.tutor-fab:hover { filter: brightness(1.08); }
+.tutor-panel {
+  position: fixed; right: 18px; bottom: 18px; z-index: 41;
+  width: min(400px, 94vw); height: min(600px, 80vh);
+  background: var(--bg2); border: 1px solid var(--accent2); border-radius: 16px;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 20px 60px -10px rgba(0,0,0,.7);
+}
+.tutor-head { display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 14px; background: #16224a; border-bottom: 1px solid var(--line); font-weight: 700; }
+.tutor-x { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; }
+.tutor-x:hover { color: var(--text); }
+.tutor-msgs { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.tutor-msg { padding: 9px 12px; border-radius: 12px; font-size: 14.5px; line-height: 1.5; max-width: 90%; white-space: pre-wrap; word-wrap: break-word; }
+.tutor-msg.user { align-self: flex-end; background: #2a3f73; color: #eaf1ff; border-bottom-right-radius: 4px; }
+.tutor-msg.assistant { align-self: flex-start; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.tutor-setup { padding: 0 12px; }
+.tutor-cfg { font-size: 13px; }
+.tutor-cfg summary { cursor: pointer; color: var(--accent); padding: 6px 0; }
+.tutor-cfg-body { padding: 6px 0 10px; }
+.tutor-note { font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
+.tutor-note a { color: var(--accent2); }
+.tutor-row { display: flex; gap: 6px; align-items: center; margin-bottom: 7px; }
+.tutor-row label { font-size: 12px; color: var(--muted); }
+.tutor-row input, .tutor-row select { flex: 1; background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; font-size: 13px; }
+.tutor-row button { background: var(--accent2); color: #06122e; border: none; border-radius: 7px; padding: 7px 12px; font-weight: 700; cursor: pointer; font-size: 13px; }
+.tutor-or { text-align: center; color: var(--muted); font-size: 11px; margin: 8px 0; }
+.tutor-alt { width: 100%; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 9px; cursor: pointer; font-size: 13px; }
+.tutor-alt:hover { border-color: var(--accent); }
+.tutor-input { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); align-items: flex-end; }
+.tutor-input textarea { flex: 1; background: var(--panel); color: var(--text); border: 1px solid var(--line);
+  border-radius: 10px; padding: 9px 11px; font-size: 14px; resize: none; font-family: inherit; }
+.tutor-input textarea:focus { outline: none; border-color: var(--accent2); }
+.tutor-input button { background: linear-gradient(90deg, var(--accent2), #6aa0ff); color: #06122e;
+  border: none; border-radius: 10px; width: 42px; height: 40px; font-size: 16px; cursor: pointer; flex-shrink: 0; }
+.tutor-input button:disabled { opacity: .5; cursor: default; }
+
+@media (max-width: 860px) {
+  .tutor-fab { right: 12px; bottom: 12px; padding: 10px 15px; font-size: 13px; }
+  .tutor-panel { right: 0; bottom: 0; width: 100vw; height: 88vh; border-radius: 16px 16px 0 0; }
+}
 
 /* ── мобайл ─────────────────────────────────────────────────────────── */
 @media (max-width: 860px) {

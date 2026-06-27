@@ -242,6 +242,13 @@
         return `<div class="b-callout c-${b.kind}"><div class="c-head">${icon} ${name}</div><div>${b.html}</div></div>`;
       }
       case 'try': return `<div class="b-try"><div class="try-head">✍️ Разбор примера</div><div>${b.html}</div></div>`;
+      case 'device': return `<div class="b-device">
+        <div class="dev-title">🔧 Как это устроено: ${b.title}</div>
+        <div class="dev-parts-h">Из чего состоит:</div>
+        <div class="dev-parts">${b.parts.map(p => `<div class="dev-part"><b>${p.n}</b><span>${p.d}</span></div>`).join('')}</div>
+        <div class="dev-steps-h">Как это работает по шагам:</div>
+        <ol class="dev-steps">${b.steps.map(s => `<li>${s}</li>`).join('')}</ol>
+      </div>`;
       case 'sim': return `<div class="b-sim"><div class="sim-host" id="sim-${i}"></div>${b.cap ? `<div class="sim-cap">${b.cap}</div>` : ''}</div>`;
       default: return '';
     }
