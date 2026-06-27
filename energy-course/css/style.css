@@ -1,0 +1,246 @@
+/* ============================================================================
+   Энергия — курс с нуля до PhD. Тёмная «энергетическая» тема, адаптив.
+============================================================================ */
+:root {
+  --bg:        #0a1020;
+  --bg2:       #0e1730;
+  --panel:     #121d3a;
+  --panel2:    #16224380;
+  --line:      #21345f;
+  --text:      #dfe7fb;
+  --muted:     #8ea3cf;
+  --accent:    #ffd35a;
+  --accent2:   #4f8cff;
+  --green:     #36d399;
+  --red:       #f87272;
+  --orange:    #f8b272;
+  --radius:    14px;
+  --nav-w:     310px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: radial-gradient(1200px 700px at 80% -10%, #16224a 0%, var(--bg) 55%) fixed;
+  color: var(--text);
+  font-family: 'Segoe UI', Roboto, system-ui, -apple-system, Arial, sans-serif;
+  font-size: 16px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── шапка ──────────────────────────────────────────────────────────── */
+.topbar {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  background: rgba(10,16,32,.85); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar .brand { font-weight: 700; letter-spacing: .3px; font-size: 16px; }
+.topbar .brand b { color: var(--accent); }
+.topbar .spacer { flex: 1; }
+.topbar .prog { min-width: 180px; max-width: 280px; flex: 1; }
+.topbar .prog .track { height: 7px; background: #1a2748; border-radius: 4px; overflow: hidden; }
+.topbar .prog .track > div { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width .4s; }
+.topbar .prog .lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+#menubtn {
+  display: none; background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px; padding: 6px 11px; font-size: 18px; cursor: pointer;
+}
+
+/* ── каркас ─────────────────────────────────────────────────────────── */
+.layout { display: flex; min-height: calc(100vh - 50px); }
+#sidebar {
+  width: var(--nav-w); flex-shrink: 0;
+  border-right: 1px solid var(--line);
+  padding: 14px 10px 40px;
+  overflow-y: auto; height: calc(100vh - 50px);
+  position: sticky; top: 50px;
+}
+#main {
+  flex: 1; min-width: 0; padding: 26px clamp(16px, 5vw, 64px) 80px;
+  height: calc(100vh - 50px); overflow-y: auto; scroll-behavior: smooth;
+}
+
+/* ── навигация ──────────────────────────────────────────────────────── */
+.nav-home {
+  width: 100%; text-align: left; background: linear-gradient(90deg, #1a2a55, #15203f);
+  color: var(--text); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 12px;
+}
+.nav-home:hover { border-color: var(--accent2); }
+.nav-module { margin-bottom: 6px; }
+.nav-modhead {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 8px 10px; cursor: pointer; border-radius: 8px; position: relative;
+}
+.nav-modhead:hover { background: var(--panel2); }
+.nav-modlevel { font-size: 10.5px; color: var(--accent); text-transform: uppercase; letter-spacing: .4px; }
+.nav-modtitle { font-size: 13.5px; font-weight: 600; }
+.nav-modcount { position: absolute; right: 10px; top: 9px; font-size: 11px; color: var(--muted); }
+.nav-lessons { display: flex; flex-direction: column; padding: 2px 0 6px 6px; }
+.nav-module.collapsed .nav-lessons { display: none; }
+.nav-lesson {
+  display: flex; align-items: center; gap: 8px; text-align: left;
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  padding: 6px 10px; border-radius: 7px; font-size: 13px; line-height: 1.35; width: 100%;
+}
+.nav-lesson:hover { background: var(--panel2); color: var(--text); }
+.nav-lesson.active { background: #1c2c57; color: var(--text); }
+.nav-check {
+  width: 16px; height: 16px; flex-shrink: 0; border-radius: 50%;
+  border: 1.5px solid var(--line); font-size: 10px; display: grid; place-items: center;
+}
+.nav-check.on { background: var(--green); border-color: var(--green); color: #07210f; }
+
+/* ── главная ────────────────────────────────────────────────────────── */
+.home { max-width: 1000px; margin: 0 auto; }
+.hero { padding: 26px 0 8px; }
+.hero-badge {
+  display: inline-block; background: #1a2a55; color: var(--accent);
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 13px;
+  font-size: 12px; letter-spacing: .4px; margin-bottom: 14px;
+}
+.hero h1 { font-size: clamp(30px, 5vw, 46px); margin: 0 0 12px; line-height: 1.1; font-weight: 700; }
+.hero h1 span { background: linear-gradient(90deg, var(--accent2), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero-sub { font-size: 17px; color: #c4d2f0; max-width: 680px; }
+.hero-row { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; margin-top: 22px; }
+.hero-prog { display: flex; flex-direction: column; gap: 5px; min-width: 180px; }
+.hero-prog-bar { height: 8px; background: #1a2748; border-radius: 5px; overflow: hidden; }
+.hero-prog-bar > div { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); }
+.hero-prog span { font-size: 12px; color: var(--muted); }
+
+.btn-primary {
+  background: linear-gradient(90deg, var(--accent2), #6aa0ff); color: #06122e;
+  border: none; border-radius: 10px; padding: 12px 22px; font-size: 15px; font-weight: 700;
+  cursor: pointer; box-shadow: 0 6px 20px -8px var(--accent2);
+}
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-ghost { background: none; color: var(--muted); border: 1px solid var(--line); border-radius: 10px; padding: 11px 18px; cursor: pointer; font-size: 14px; }
+.btn-ghost:hover { color: var(--text); border-color: var(--accent2); }
+.btn-done { background: var(--panel); color: var(--green); border: 1px solid var(--line); border-radius: 10px; padding: 11px 18px; cursor: pointer; font-size: 14px; font-weight: 600; }
+.btn-done:hover { border-color: var(--green); }
+
+.home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; margin-top: 34px; }
+.modcard {
+  text-align: left; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 16px; cursor: pointer; color: var(--text);
+  display: flex; flex-direction: column; gap: 7px; transition: transform .12s, border-color .12s;
+}
+.modcard:hover { transform: translateY(-3px); border-color: var(--accent2); }
+.modcard-level { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: .5px; }
+.modcard-title { font-size: 18px; font-weight: 700; }
+.modcard-intro { font-size: 13px; color: var(--muted); line-height: 1.45; flex: 1; }
+.modcard-foot { display: flex; align-items: center; gap: 9px; margin-top: 4px; }
+.modcard-bar { flex: 1; height: 6px; background: #1a2748; border-radius: 4px; overflow: hidden; }
+.modcard-bar > div { height: 100%; background: var(--green); }
+.modcard-foot span { font-size: 12px; color: var(--muted); }
+
+.home-foot { margin-top: 40px; padding: 22px; background: var(--panel2); border: 1px solid var(--line); border-radius: var(--radius); }
+.home-foot h3 { margin: 0 0 12px; }
+.home-foot ul { margin: 0; padding-left: 20px; color: #c4d2f0; }
+.home-foot li { margin-bottom: 7px; }
+
+/* ── урок ───────────────────────────────────────────────────────────── */
+.lesson { max-width: 820px; margin: 0 auto; }
+.lesson-top { border-bottom: 1px solid var(--line); padding-bottom: 16px; margin-bottom: 8px; }
+.lesson-crumbs { font-size: 12px; color: var(--accent); text-transform: uppercase; letter-spacing: .5px; }
+.lesson-title { font-size: clamp(24px, 4vw, 34px); margin: 6px 0 8px; line-height: 1.15; }
+.lesson-meta { font-size: 13px; color: var(--muted); }
+.lesson-body { font-size: 16.5px; }
+.b-text { margin: 16px 0; }
+.b-text p { margin: 0 0 14px; }
+.b-text ul, .b-text ol { margin: 0 0 14px; padding-left: 22px; }
+.b-text li { margin-bottom: 7px; }
+.b-text b { color: #fff; }
+.lesson-body i { color: #cfdcfb; }
+
+/* формула */
+.b-formula { margin: 22px 0; padding: 18px; text-align: center;
+  background: linear-gradient(180deg, #13213f, #101a33); border: 1px solid var(--line); border-radius: var(--radius); }
+.f-eq { font-size: clamp(18px, 3.5vw, 24px); font-family: 'Cambria Math', Georgia, serif; color: var(--accent); letter-spacing: .5px; }
+.f-eq sub { font-size: .65em; }
+.lesson-body sub { font-size: .72em; }
+.f-cap { font-size: 13px; color: var(--muted); margin-top: 10px; }
+
+/* врезки */
+.b-callout { margin: 20px 0; padding: 14px 16px; border-radius: var(--radius); border: 1px solid var(--line); border-left-width: 4px; }
+.b-callout .c-head { font-weight: 700; font-size: 13px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .4px; }
+.c-key  { background: #131f3e; border-left-color: var(--accent2); }
+.c-key .c-head { color: var(--accent2); }
+.c-idea { background: #14231c; border-left-color: var(--green); }
+.c-idea .c-head { color: var(--green); }
+.c-warn { background: #261a14; border-left-color: var(--orange); }
+.c-warn .c-head { color: var(--orange); }
+.b-callout b { color: #fff; }
+
+/* разбор примера */
+.b-try { margin: 20px 0; padding: 14px 16px; background: #101a33; border: 1px dashed var(--line); border-radius: var(--radius); font-size: 15px; }
+.try-head { font-weight: 700; color: var(--accent); font-size: 13px; margin-bottom: 6px; }
+.b-try b { color: var(--accent); }
+
+/* таблицы спектра */
+table.spec { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; }
+table.spec th, table.spec td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; }
+table.spec th { background: #16224a; color: var(--accent); }
+table.spec tr:nth-child(even) td { background: #101a33; }
+
+/* модель */
+.b-sim { margin: 22px 0; }
+.sim-host { background: #0c1530; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
+.sim-cap { font-size: 13px; color: var(--muted); margin-top: 9px; }
+.sim-canvas { display: block; width: 100%; border-radius: 8px; background: #0a1226; }
+.sim-controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; margin-top: 12px; }
+.sim-ctl { display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex: 1; }
+.sim-ctl label { font-size: 12.5px; color: var(--muted); display: flex; justify-content: space-between; }
+.sim-val { color: var(--accent); font-weight: 600; }
+.sim-ctl input[type=range] { width: 100%; accent-color: var(--accent2); }
+.sim-toggle { font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.sim-toggle input { accent-color: var(--green); }
+.sim-btn { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 13px; font-size: 13px; cursor: pointer; }
+.sim-btn:hover { border-color: var(--accent2); }
+
+/* тест */
+.quiz { margin: 34px 0 10px; padding: 20px; background: var(--panel2); border: 1px solid var(--line); border-radius: var(--radius); }
+.quiz-title { margin: 0 0 16px; font-size: 19px; }
+.quiz-q { margin-bottom: 20px; }
+.quiz-text { font-weight: 600; margin-bottom: 10px; }
+.quiz-opts { display: flex; flex-direction: column; gap: 8px; }
+.quiz-opt { text-align: left; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 9px; padding: 10px 14px; font-size: 14.5px; cursor: pointer; transition: border-color .12s; }
+.quiz-opt:hover:not(:disabled) { border-color: var(--accent2); }
+.quiz-opt:disabled { cursor: default; opacity: .9; }
+.quiz-opt.correct { background: #16331f; border-color: var(--green); color: #c8f8d8; }
+.quiz-opt.wrong { background: #331616; border-color: var(--red); color: #f8c8c8; }
+.quiz-why { font-size: 14px; margin-top: 9px; padding: 0; max-height: 0; overflow: hidden; transition: max-height .2s; color: var(--muted); }
+.quiz-why.show { max-height: 200px; padding: 4px 2px 0; }
+.quiz-why.ok b { color: var(--green); }
+.quiz-why.no b { color: var(--red); }
+.quiz-score { font-weight: 700; color: var(--green); margin-top: 6px; min-height: 20px; }
+
+/* нижняя навигация урока */
+.lesson-nav { display: flex; gap: 10px; align-items: center; margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.lesson-nav .btn-primary { margin-left: auto; }
+
+/* финал */
+.finish { max-width: 620px; margin: 8vh auto; text-align: center; }
+.finish-badge { font-size: 64px; }
+.finish h1 { font-size: 34px; margin: 8px 0 16px; }
+.finish p { color: #c4d2f0; font-size: 17px; }
+.finish-tip { color: var(--muted) !important; font-size: 15px !important; }
+.finish .btn-primary { margin-top: 22px; }
+
+/* ── мобайл ─────────────────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  #menubtn { display: block; }
+  #sidebar {
+    position: fixed; left: 0; top: 50px; bottom: 0; z-index: 25;
+    width: 86vw; max-width: 340px; height: auto;
+    background: var(--bg2); transform: translateX(-105%); transition: transform .25s;
+    box-shadow: 0 0 40px rgba(0,0,0,.5);
+  }
+  body.nav-open #sidebar { transform: translateX(0); }
+  body.nav-open::after { content: ''; position: fixed; inset: 50px 0 0; background: rgba(0,0,0,.5); z-index: 24; }
+  #main { height: auto; padding: 18px 16px 70px; }
+  .topbar .prog { display: none; }
+  .layout { display: block; }
+  .sim-ctl { min-width: 120px; }
+}
