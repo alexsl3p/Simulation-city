@@ -211,7 +211,9 @@ body {
 .b-device { margin: 22px 0; padding: 16px 18px; background: linear-gradient(180deg, #122140, #0e1a33);
   border: 1px solid var(--line); border-radius: var(--radius); border-left: 4px solid var(--accent); }
 .dev-title { font-weight: 700; font-size: 16px; color: var(--accent); margin-bottom: 12px; }
-.dev-parts-h, .dev-steps-h { font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--accent2); margin: 10px 0 8px; font-weight: 700; }
+.dev-parts-h, .dev-steps-h, .dev-diag-h { font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--accent2); margin: 10px 0 8px; font-weight: 700; }
+.dev-diag { background: #0a1226; border: 1px solid var(--line); border-radius: 10px; padding: 4px; margin-bottom: 6px; }
+.dev-diag .sim-canvas { background: transparent; }
 .dev-parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 .dev-part { background: #0c1530; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; font-size: 14px; }
 .dev-part b { color: #fff; display: block; margin-bottom: 2px; }

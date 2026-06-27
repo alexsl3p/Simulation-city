@@ -7,7 +7,7 @@
 
   const STORE_KEY = 'energy_course_progress_v1';
   let progress = load();        // { doneLessons:{id:true}, quizPassed:{id:true} }
-  let activeSim = null;         // текущая запущенная модель (для destroy)
+  let activeSims = [];          // запущенные модели и схемы (для destroy)
   let current = null;           // {mi, li} — индексы модуля/урока
 
   function load() {
@@ -204,11 +204,15 @@
         </div>
       </article>`;
 
-    // монтируем интерактивные модели
+    // монтируем интерактивные модели и анимированные схемы
     l.blocks.forEach((b, i) => {
       if (b.t === 'sim' && SIMS[b.sim]) {
         const host = document.getElementById('sim-' + i);
-        if (host) activeSim = SIMS[b.sim](host); // последняя модель — для destroy
+        if (host) activeSims.push(SIMS[b.sim](host));
+      }
+      if (b.t === 'device' && b.diagram && typeof DIAGRAMS !== 'undefined' && DIAGRAMS[b.diagram]) {
+        const host = document.getElementById('diag-' + i);
+        if (host) activeSims.push(DIAGRAMS[b.diagram](host));
       }
     });
 
@@ -244,6 +248,7 @@
       case 'try': return `<div class="b-try"><div class="try-head">✍️ Разбор примера</div><div>${b.html}</div></div>`;
       case 'device': return `<div class="b-device">
         <div class="dev-title">🔧 Как это устроено: ${b.title}</div>
+        ${b.diagram ? `<div class="dev-diag-h">▶ Поток энергии (анимация):</div><div class="dev-diag" id="diag-${i}"></div>` : ''}
         <div class="dev-parts-h">Из чего состоит:</div>
         <div class="dev-parts">${b.parts.map(p => `<div class="dev-part"><b>${p.n}</b><span>${p.d}</span></div>`).join('')}</div>
         <div class="dev-steps-h">Как это работает по шагам:</div>
@@ -320,7 +325,7 @@
     refreshProgress();
   }
 
-  function killSim() { if (activeSim) { try { activeSim.destroy(); } catch (e) {} activeSim = null; } }
+  function killSim() { activeSims.forEach(s => { try { s.destroy(); } catch (e) {} }); activeSims = []; }
 
   function el(tag, cls, html) {
     const e = document.createElement(tag);
