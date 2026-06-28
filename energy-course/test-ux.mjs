@@ -121,6 +121,22 @@ log('Экзамен: показан итоговый балл', scoreShown === 1
 const correctMarks = await page.locator('.exam-opt.correct').count();
 log('Экзамен: правильные ответы подсвечены', correctMarks >= qCount);
 
+// 14. follow-ups: chips present on a lesson, clicking opens the tutor with the question
+await page.setViewportSize({ width: 1200, height: 800 });
+await page.locator('.nav-lesson', { hasText: 'Что такое энергия' }).click();
+await page.waitForTimeout(250);
+const chips = await page.locator('.fu-chip').count();
+log('Блок «Копнуть глубже»: вопросы есть', chips >= 2, `(${chips})`);
+if (chips) {
+  const firstQ = (await page.locator('.fu-chip').first().textContent()).replace(' ↗', '').trim();
+  await page.locator('.fu-chip').first().click();
+  await page.waitForTimeout(300);
+  const tutorOpen = await page.locator('.tutor-panel').isVisible();
+  log('Клик по вопросу открывает ИИ-препода', tutorOpen);
+  const asked = await page.locator('.tutor-msg.user').last().textContent().catch(() => '');
+  log('Вопрос отправлен преподу', asked.includes(firstQ.slice(0, 15)), `"${asked.slice(0,30)}"`);
+}
+
 console.log('\n=== Ошибки консоли/страницы:', errors.length, '===');
 errors.forEach(e => console.log('  ' + e));
 

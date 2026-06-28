@@ -78,13 +78,29 @@
   const qBox = panel.querySelector('#tutor-q');
   const sendBtn = panel.querySelector('#tutor-send');
 
+  function openPanel() {
+    panel.style.display = 'flex';
+    fab.style.display = 'none';
+    renderSetup();
+    if (!convo.length) greet();
+  }
+  function closePanel() { panel.style.display = 'none'; fab.style.display = ''; }
+
   fab.addEventListener('click', () => {
-    const open = panel.style.display === 'none';
-    panel.style.display = open ? 'flex' : 'none';
-    fab.style.display = open ? 'none' : '';
-    if (open) { renderSetup(); if (!convo.length) greet(); qBox.focus(); }
+    if (panel.style.display === 'none') { openPanel(); qBox.focus(); } else { closePanel(); }
   });
-  panel.querySelector('.tutor-x').addEventListener('click', () => { panel.style.display = 'none'; fab.style.display = ''; });
+  panel.querySelector('.tutor-x').addEventListener('click', closePanel);
+
+  // публичный API: открыть препода и сразу задать вопрос (для кнопок «копнуть глубже»)
+  window.EnergyTutor = {
+    ask(text) {
+      openPanel();
+      qBox.value = text;
+      ask();
+      panel.scrollIntoView && msgs.scrollTo(0, msgs.scrollHeight);
+    },
+    open: openPanel,
+  };
 
   function greet() {
     addMsg('assistant', 'Привет! Я ваш ИИ-препод по физике энергии. Спросите что угодно про текущий урок — объясню простыми словами. Например: «Объясни ещё проще» или «Зачем это нужно?»');
@@ -139,7 +155,8 @@
     const q = qBox.value.trim();
     if (!q || busy) return;
     if (!getKey()) {
-      addMsg('assistant', 'Чтобы спрашивать прямо здесь, добавьте свой ключ Anthropic API в настройках выше (🔑). Либо нажмите «Открыть в Claude.ai» — это работает без ключа.');
+      addMsg('user', q);
+      addMsg('assistant', 'Чтобы я ответил прямо здесь, добавьте свой ключ Anthropic API в настройках выше (🔑) и снова нажмите вопрос. Либо нажмите «💬 Открыть вопрос в Claude.ai» — это работает без ключа, вопрос уйдёт туда вместе с контекстом урока.');
       renderSetup();
       const d = setup.querySelector('.tutor-cfg'); if (d) d.open = true;
       return;

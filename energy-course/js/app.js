@@ -323,6 +323,7 @@
            <div>${l.tldr || TLDR[l.id]}</div></div>` : ''}
         <div class="lesson-body">${blocksHtml}</div>
         <div id="quiz"></div>
+        <div id="followups"></div>
         <div class="lesson-nav">
           <button class="btn-ghost" id="prevBtn">← Назад</button>
           <button class="btn-done" id="doneBtn">${progress.done[l.id] ? '✓ Пройдено' : 'Отметить пройденным'}</button>
@@ -343,6 +344,7 @@
     });
 
     renderQuiz(l);
+    renderFollowups(l);
 
     const idx = flat.findIndex(f => f.mi === mi && f.li === li);
     document.getElementById('prevBtn').addEventListener('click', () => idx > 0 ? openFlat(idx - 1) : showHome());
@@ -425,6 +427,28 @@
           document.getElementById('quiz-score').textContent = 'Тест пройден ✓ — отличная работа!';
         }
       });
+    });
+  }
+
+  /* ── «копнуть глубже»: наводящие вопросы → ИИ-преподаватель ─────────── */
+  function renderFollowups(l) {
+    const host = document.getElementById('followups');
+    if (!host) return;
+    const list = l.followups || (typeof FOLLOWUPS !== 'undefined' && FOLLOWUPS[l.id]) || [];
+    if (!list.length) { host.innerHTML = ''; return; }
+    host.innerHTML = `<div class="followups">
+      <h3 class="fu-title">💬 Копнуть глубже</h3>
+      <p class="fu-sub">Что можно спросить дальше. Нажмите вопрос — ИИ-преподаватель объяснит с учётом этого урока, и можно продолжить беседу ветвлениями, как в живом чате.</p>
+      <div class="fu-chips"></div>
+    </div>`;
+    const wrap = host.querySelector('.fu-chips');
+    list.forEach(q => {
+      const b = el('button', 'fu-chip'); b.textContent = q;
+      b.addEventListener('click', () => {
+        if (window.EnergyTutor) window.EnergyTutor.ask(q);
+        else alert('ИИ-преподаватель недоступен.');
+      });
+      wrap.appendChild(b);
     });
   }
 
