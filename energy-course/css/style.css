@@ -225,6 +225,30 @@ body {
 .c-warn { background: #261a14; border-left-color: var(--orange); }
 .c-warn .c-head { color: var(--orange); }
 .b-callout b { color: #fff; }
+.c-trap { background: #25142a; border-left-color: #e879f9; }
+.c-trap .c-head { color: #e879f9; }
+.c-floor { background: #131a2e; border-left-color: #8a9bff; }
+.c-floor .c-head { color: #8a9bff; }
+.c-check { background: #102420; border-left-color: #2dd4bf; }
+.c-check .c-head { color: #2dd4bf; }
+.c-analogy { background: #0f2030; border-left-color: #38bdf8; }
+.c-analogy .c-head { color: #38bdf8; }
+.c-trap table.cmp, .b-callout table.cmp { width: 100%; border-collapse: collapse; margin: 8px 0 2px; font-size: 13.5px; }
+.b-callout table.cmp th, .b-callout table.cmp td { border: 1px solid var(--line); padding: 6px 9px; text-align: left; vertical-align: top; }
+.b-callout table.cmp th { background: rgba(255,255,255,.05); }
+.callout-итог, .c-line { display: block; margin-top: 8px; font-weight: 600; color: #fff; }
+
+/* блок «предположи сам» */
+.b-predict { margin: 22px 0; padding: 16px 18px; background: linear-gradient(135deg, #1b1430, #131022);
+  border: 1px solid #6b4bce; border-left-width: 4px; border-radius: var(--radius); }
+.predict-head { font-weight: 700; color: #b794f6; font-size: 13px; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
+.predict-q { font-size: 16px; }
+.predict-q b { color: #fff; }
+.predict-btn { margin-top: 12px; background: #2a1f52; color: #d7c6ff; border: 1px solid #6b4bce;
+  border-radius: 9px; padding: 9px 16px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.predict-btn:hover { background: #36286a; }
+.predict-reveal { margin-top: 14px; padding-top: 14px; border-top: 1px dashed #6b4bce; font-size: 15.5px; }
+.predict-reveal b { color: #b794f6; }
 
 /* разбор примера */
 .b-try { margin: 20px 0; padding: 14px 16px; background: #101a33; border: 1px dashed var(--line); border-radius: var(--radius); font-size: 15px; }

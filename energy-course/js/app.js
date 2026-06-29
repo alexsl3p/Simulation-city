@@ -343,6 +343,14 @@
       }
     });
 
+    // блоки «предположи сам» — раскрытие разбора
+    main.querySelectorAll('.predict-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const rev = document.getElementById('reveal-' + btn.dataset.pi);
+        if (rev) { rev.hidden = false; btn.style.display = 'none'; }
+      });
+    });
+
     renderQuiz(l);
     renderFollowups(l);
 
@@ -369,10 +377,16 @@
       case 'text': return `<div class="b-text">${b.html}</div>`;
       case 'formula': return `<div class="b-formula"><div class="f-eq">${fmtFormula(b.f)}</div>${b.cap ? `<div class="f-cap">${b.cap}</div>` : ''}</div>`;
       case 'callout': {
-        const icon = { idea: '💡', warn: '⚠️', key: '🔑' }[b.kind] || '•';
-        const name = { idea: 'Идея', warn: 'Важно', key: 'Ключевое' }[b.kind] || '';
+        const icon = { idea: '💡', warn: '⚠️', key: '🔑', trap: '⚠', floor: '🪜', check: '🔬', analogy: '🔍' }[b.kind] || '•';
+        const name = { idea: 'Идея', warn: 'Важно', key: 'Ключевое', trap: 'Слова-обманки', floor: 'Этаж', check: 'Три проверки', analogy: 'Фильтр аналогий' }[b.kind] || '';
         return `<div class="b-callout c-${b.kind}"><div class="c-head">${icon} ${name}</div><div>${b.html}</div></div>`;
       }
+      case 'predict': return `<div class="b-predict">
+        <div class="predict-head">🔮 Сначала предположи сам</div>
+        <div class="predict-q">${b.html}</div>
+        <button class="predict-btn" data-pi="${i}">Показать разбор →</button>
+        <div class="predict-reveal" id="reveal-${i}" hidden>${b.reveal}</div>
+      </div>`;
       case 'try': return `<div class="b-try"><div class="try-head">✍️ Разбор примера</div><div>${b.html}</div></div>`;
       case 'device': return `<div class="b-device">
         <div class="dev-title">🔧 Как это устроено: ${b.title}</div>

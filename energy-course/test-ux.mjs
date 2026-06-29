@@ -137,6 +137,25 @@ if (chips) {
   log('Вопрос отправлен преподу', asked.includes(firstQ.slice(0, 15)), `"${asked.slice(0,30)}"`);
 }
 
+// 15. cognitive-profile blocks: trap/floor render, predict reveals
+await page.locator('.nav-lesson', { hasText: 'Строение ядра и энергия связи' }).click();
+await page.waitForTimeout(250);
+const floors = await page.locator('.c-floor').count();
+const traps = await page.locator('.c-trap').count();
+log('Блок «Этаж» (floor) рендерится', floors >= 1, `(${floors})`);
+log('Блок «Слова-обманки» (trap) рендерится', traps >= 1, `(${traps})`);
+
+await page.locator('.nav-lesson', { hasText: 'Деление ядер и реакторы' }).click();
+await page.waitForTimeout(250);
+const predictBtn = await page.locator('.predict-btn').count();
+log('Блок «Предположи сам» есть', predictBtn >= 1, `(${predictBtn})`);
+const revealHiddenBefore = await page.locator('.predict-reveal').first().isHidden();
+log('Разбор скрыт до клика', revealHiddenBefore);
+await page.locator('.predict-btn').first().click();
+await page.waitForTimeout(150);
+const revealShown = await page.locator('.predict-reveal').first().isVisible();
+log('Клик раскрывает разбор', revealShown);
+
 console.log('\n=== Ошибки консоли/страницы:', errors.length, '===');
 errors.forEach(e => console.log('  ' + e));
 
